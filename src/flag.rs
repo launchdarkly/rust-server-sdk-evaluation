@@ -23,8 +23,6 @@ pub struct Flag {
     off_variation: Option<VariationIndex>,
     variations: Vec<FlagValue>,
 
-    //#[serde(default)]
-    //track_events: bool,
     salt: String,
 }
 
