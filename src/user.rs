@@ -193,6 +193,7 @@ pub struct User {
     #[serde(rename = "anonymous", skip_serializing_if = "Option::is_none")]
     _anonymous: Option<AttributeValue>,
 
+    #[serde(default)]
     custom: HashMap<String, AttributeValue>,
 }
 
