@@ -7,16 +7,15 @@ use crate::user::User;
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
     pub key: String,
-
-    included: Vec<String>,
-    excluded: Vec<String>,
-    rules: Vec<SegmentRule>,
-    salt: String,
+    pub included: Vec<String>,
+    pub excluded: Vec<String>,
+    pub rules: Vec<SegmentRule>,
+    pub salt: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct SegmentRule {
-    clauses: Vec<Clause>,
+pub struct SegmentRule {
+    pub clauses: Vec<Clause>,
     // TODO rollout
     // weight: Option<VariationWeight>
     // bucket_by: Option<String>,

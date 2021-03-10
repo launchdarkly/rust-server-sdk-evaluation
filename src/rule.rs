@@ -9,22 +9,22 @@ use crate::variation::VariationOrRollout;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Clause {
-    attribute: String,
-    negate: bool,
-    op: Op,
-    values: Vec<AttributeValue>,
+    pub attribute: String,
+    pub negate: bool,
+    pub op: Op,
+    pub values: Vec<AttributeValue>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct FlagRule {
-    clauses: Vec<Clause>,
+    pub clauses: Vec<Clause>,
     #[serde(flatten)]
     pub variation_or_rollout: VariationOrRollout,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-enum Op {
+pub enum Op {
     In,
     StartsWith,
     EndsWith,
