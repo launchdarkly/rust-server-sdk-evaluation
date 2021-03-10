@@ -129,9 +129,7 @@ mod tests {
 
     use crate::eval::Reason::*;
     use crate::flag_value::FlagValue::Bool;
-    use crate::rule::{Clause, Op};
     use crate::segment::Segment;
-    use crate::user::AttributeValue;
 
     struct TestStore {
         flags: HashMap<String, Flag>,
@@ -142,141 +140,127 @@ mod tests {
         fn new() -> TestStore{
             TestStore{
                 flags: hashmap!{
-                    "flag".to_string() => Flag {
-                        key: "flag".to_string(),
-                        version: 42,
-                        on: false,
-                        targets: vec![],
-                        rules: vec![],
-                        prerequisites: vec![],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "flagWithTarget".to_string() => Flag {
-                        key: "flagWithTarget".to_string(),
-                        version: 42,
-                        on: false,
-                        targets: vec![Target {
-                            values: vec!["bob".into()],
-                            variation: 0,
+                    "flag".to_string() => serde_json::from_str(r#"{
+                        "key": "flag",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithTarget".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithTarget",
+                        "version": 42,
+                        "on": false,
+                        "targets": [{
+                            "values": ["bob"],
+                            "variation": 0
                         }],
-                        rules: vec![],
-                        prerequisites: vec![],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "flagWithUnsatisfiedPrereq".to_string() => Flag {
-                        key: "flagWithUnsatisfiedPrereq".to_string(),
-                        version: 42,
-                        on: true,
-                        targets: vec![],
-                        rules: vec![],
-                        prerequisites: vec![Prereq {
-                            key: "badPrereq".to_string(),
-                            variation: 1,
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithUnsatisfiedPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithUnsatisfiedPrereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [{
+                            "key": "badPrereq",
+                            "variation": 1
                         }],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "flagWithSatisfiedPrereq".to_string() => Flag {
-                        key: "flagWithSatisfiedPrereq".to_string(),
-                        version: 42,
-                        on: true,
-                        targets: vec![],
-                        rules: vec![],
-                        prerequisites: vec![Prereq {
-                            key: "prereq".to_string(),
-                            variation: 1,
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithSatisfiedPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithSatisfiedPrereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [{
+                            "key": "prereq",
+                            "variation": 1
                         }],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "prereq".to_string() => Flag {
-                        key: "prereq".to_string(),
-                        version: 42,
-                        on: true,
-                        targets: vec![Target {
-                            values: vec!["bob".into()],
-                            variation: 0,
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "prereq".to_string() => serde_json::from_str(r#"{
+                        "key": "prereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [{
+                            "values": ["bob"],
+                            "variation": 0
                         }],
-                        rules: vec![],
-                        prerequisites: vec![],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "flagWithInRule".to_string() => Flag {
-                        key: "flagWithInRule".to_string(),
-                        version: 42,
-                        on: false,
-                        targets: vec![],
-                        rules: vec![FlagRule {
-                            clauses: vec![ Clause {
-                                attribute: "team".to_string(),
-                                negate: false,
-                                op: Op::In,
-                                values: vec![AttributeValue::String("Avengers".to_string())],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithInRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithInRule",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [{
+                            "clauses": [{
+                                "attribute": "team",
+                                "negate": false,
+                                "op": "in",
+                                "values": ["Avengers"]
                             }],
-                            variation_or_rollout: VariationOrRollout::Variation(0),
+                            "variation": 0
                         }],
-                        prerequisites: vec![],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
-                    "flagWithSegmentMatchRule".to_string() => Flag {
-                        key: "flagWithSegmentMatchRule".to_string(),
-                        version: 42,
-                        on: true,
-                        targets: vec![],
-                        rules: vec![FlagRule {
-                            clauses: vec![ Clause {
-                                attribute: "segmentMatch".to_string(),
-                                negate: false,
-                                op: Op::SegmentMatch,
-                                values: vec!["segment".into()],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithSegmentMatchRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithSegmentMatchRule",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [{
+                            "clauses": [{
+                                "attribute": "segmentMatch",
+                                "negate": false,
+                                "op": "segmentMatch",
+                                "values": ["segment"]
                             }],
-                            variation_or_rollout: VariationOrRollout::Variation(0),
+                            "variation": 0
                         }],
-                        prerequisites: vec![],
-                        fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                            VariationOrRollout::Variation(1),
-                        ),
-                        off_variation: Some(0),
-                        variations: vec![false.into(), true.into()],
-                        salt: "salty".to_string(),
-                    },
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
                 },
                 segments: hashmap!{
-                    "segment".to_string() => Segment{
-                        key: "segment".to_string(),
-                        included: vec!["alice".to_string()],
-                        excluded: vec![],
-                        rules: vec![],
-                        salt: "salty".to_string(),
-                    },
+                    "segment".to_string() => serde_json::from_str(r#"{
+                        "key": "segment",
+                        "included": ["alice"],
+                        "excluded": [],
+                        "rules": [],
+                        "salt": "salty"
+                    }"#).unwrap()
                 },
             }
         }
@@ -392,7 +376,6 @@ mod tests {
         let alice = User::with_key("alice").build();
         let bob = User::with_key("bob").build();
 
-        // prerequisite missing => prerequisite failed.
         for user in vec![&alice, &bob] {
             let detail = flag.evaluate(user, &store);
             assert_that!(detail.value).contains_value(&Bool(false));
