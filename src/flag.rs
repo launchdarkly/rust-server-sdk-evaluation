@@ -4,7 +4,7 @@ use crate::eval::{self, Detail, Reason};
 use crate::flag_value::FlagValue;
 use crate::rule::FlagRule;
 use crate::store::Store;
-use crate::user::{AttributeValue, User};
+use crate::user::User;
 use crate::variation::{VariationIndex, VariationOrRollout, VariationOrRolloutOrMalformed};
 
 #[derive(Clone, Debug, Deserialize)]
@@ -121,14 +121,17 @@ impl Flag {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
     use spectral::prelude::*;
     use maplit::hashmap;
+
+    use crate::eval::Reason::*;
+    use crate::flag_value::FlagValue::Bool;
     use crate::rule::{Clause, Op};
     use crate::segment::Segment;
-    use crate::flag_value::FlagValue::Bool;
-    use crate::eval::Reason::*;
-    use std::collections::HashMap;
+    use crate::user::AttributeValue;
 
     struct TestStore {
         flags: HashMap<String, Flag>,
@@ -349,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_eval_flag_rules() {
-        let mut store = TestStore::new();
+        let store = TestStore::new();
         let alice = User::with_key("alice").build();
         let bob = User::with_key("bob")
             .custom(hashmap! {
