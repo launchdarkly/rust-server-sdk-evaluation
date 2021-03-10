@@ -118,3 +118,321 @@ impl Flag {
             })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+    use spectral::prelude::*;
+    use maplit::hashmap;
+
+    use crate::eval::Reason::*;
+    use crate::flag_value::FlagValue::Bool;
+    use crate::segment::Segment;
+
+    struct TestStore {
+        flags: HashMap<String, Flag>,
+        segments: HashMap<String, Segment>,
+    }
+
+    impl TestStore {
+        fn new() -> TestStore{
+            TestStore{
+                flags: hashmap!{
+                    "flag".to_string() => serde_json::from_str(r#"{
+                        "key": "flag",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithTarget".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithTarget",
+                        "version": 42,
+                        "on": false,
+                        "targets": [{
+                            "values": ["bob"],
+                            "variation": 0
+                        }],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithUnsatisfiedPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithUnsatisfiedPrereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [{
+                            "key": "badPrereq",
+                            "variation": 1
+                        }],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithSatisfiedPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithSatisfiedPrereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [{
+                            "key": "prereq",
+                            "variation": 1
+                        }],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "prereq".to_string() => serde_json::from_str(r#"{
+                        "key": "prereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [{
+                            "values": ["bob"],
+                            "variation": 0
+                        }],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithInRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithInRule",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [{
+                            "clauses": [{
+                                "attribute": "team",
+                                "negate": false,
+                                "op": "in",
+                                "values": ["Avengers"]
+                            }],
+                            "variation": 0
+                        }],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithSegmentMatchRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithSegmentMatchRule",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [{
+                            "clauses": [{
+                                "attribute": "segmentMatch",
+                                "negate": false,
+                                "op": "segmentMatch",
+                                "values": ["segment"]
+                            }],
+                            "variation": 0
+                        }],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "salt": "salty"
+                    }"#).unwrap(),
+                },
+                segments: hashmap!{
+                    "segment".to_string() => serde_json::from_str(r#"{
+                        "key": "segment",
+                        "included": ["alice"],
+                        "excluded": [],
+                        "rules": [],
+                        "salt": "salty"
+                    }"#).unwrap()
+                },
+            }
+        }
+
+        fn update_flag(&mut self, flag_key: &str, fun: fn(&mut Flag) -> ()) {
+            let flag = self.flags.get_mut(flag_key).unwrap();
+            fun(flag);
+        }
+    }
+
+    impl Store for TestStore {
+        fn flag(&self, flag_key: &str) -> Option<&Flag> {
+            self.flags.get(flag_key)
+        }
+
+        fn segment(&self, segment_key: &str) -> Option<&Segment> {
+            self.segments.get(segment_key)
+        }
+    }
+
+    #[test]
+    fn test_eval_flag_basic() {
+        let store = TestStore::new();
+        let alice = User::with_key("alice").build(); // not targeted
+        let bob = User::with_key("bob").build(); // targeted
+        let mut flag = store.flag("flagWithTarget").unwrap().clone();
+
+        assert!(!flag.on);
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.variation_index).contains_value(0);
+        assert_that!(detail.reason).is_equal_to(&Off);
+
+        assert_that!(flag.evaluate(&bob, &store)).is_equal_to(&detail);
+
+        // flip off variation
+        flag.off_variation = Some(1);
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(true));
+        assert_that!(detail.variation_index).contains_value(1);
+
+        // off variation unspecified
+        flag.off_variation = None;
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).is_none();
+        assert_that!(detail.variation_index).is_none();
+        assert_that!(detail.reason).is_equal_to(&Off);
+
+        // flip targeting on
+        flag.on = true;
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(true));
+        assert_that!(detail.variation_index).contains_value(1);
+        assert_that!(detail.reason).is_equal_to(&Fallthrough);
+
+        let detail = flag.evaluate(&bob, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.variation_index).contains_value(0);
+        assert_that!(detail.reason).is_equal_to(&TargetMatch);
+
+        // flip default variation
+        flag.fallthrough = VariationOrRollout::Variation(0).into();
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.variation_index).contains_value(0);
+
+        // bob's reason should still be TargetMatch even though his value is now the default
+        let detail = flag.evaluate(&bob, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.variation_index).contains_value(0);
+        assert_that!(detail.reason).is_equal_to(&TargetMatch);
+    }
+
+    #[test]
+    fn test_eval_flag_rules() {
+        let store = TestStore::new();
+        let alice = User::with_key("alice").build();
+        let bob = User::with_key("bob")
+            .custom(hashmap! {
+                "team".into() => "Avengers".into(),
+            })
+            .build();
+
+        let mut flag = store.flag("flagWithInRule").unwrap().clone();
+
+        assert!(!flag.on);
+        for user in vec![&alice, &bob] {
+            let detail = flag.evaluate(user, &store);
+            assert_that!(detail.value).contains_value(&Bool(false));
+            assert_that!(detail.variation_index).contains_value(0);
+            assert_that!(detail.reason).is_equal_to(&Off);
+        }
+
+        // flip targeting on
+        flag.on = true;
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(true));
+        assert_that!(detail.variation_index).contains_value(1);
+        assert_that!(detail.reason).is_equal_to(&Fallthrough);
+
+        let detail = flag.evaluate(&bob, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.variation_index).contains_value(0);
+        assert_that!(detail.reason).is_equal_to(&RuleMatch);
+    }
+
+    #[test]
+    fn test_eval_flag_unsatisfied_prereq() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithUnsatisfiedPrereq").unwrap().clone();
+        assert!(flag.on);
+
+        let alice = User::with_key("alice").build();
+        let bob = User::with_key("bob").build();
+
+        for user in vec![&alice, &bob] {
+            let detail = flag.evaluate(user, &store);
+            assert_that!(detail.value).contains_value(&Bool(false));
+            assert_that!(detail.reason).is_equal_to(&PrerequisiteFailed {
+                prerequisite_key: "badPrereq".to_string(),
+            });
+        }
+    }
+
+    #[test]
+    fn test_eval_flag_satisfied_prereq() {
+        let mut store = TestStore::new();
+        let flag = store.flag("flagWithSatisfiedPrereq").unwrap().clone();
+
+        let alice = User::with_key("alice").build();
+        let bob = User::with_key("bob").build();
+
+        let detail = flag.evaluate(&alice, &store);
+        asserting!("alice should pass prereq and see fallthrough")
+            .that(&detail.value)
+            .contains_value(&Bool(true));
+        let detail = flag.evaluate(&bob, &store);
+        asserting!("bob should see prereq failed due to target")
+            .that(&detail.value)
+            .contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::PrerequisiteFailed {
+            prerequisite_key: "prereq".to_string(),
+        });
+
+        // prerequisite off
+        store.update_flag("prereq", |flag| (flag.on = false));
+        for user in vec![&alice, &bob] {
+            let detail = flag.evaluate(user, &store);
+            assert_that!(detail.value).contains_value(&Bool(false));
+            assert_that!(detail.reason).is_equal_to(&PrerequisiteFailed {
+                prerequisite_key: "prereq".to_string(),
+            });
+        }
+    }
+
+    #[test]
+    fn test_eval_flag_segments() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithSegmentMatchRule").unwrap();
+
+        let alice = User::with_key("alice").build();
+        let bob = User::with_key("bob").build();
+
+        let detail = flag.evaluate(&alice, &store);
+        asserting!("alice is in segment, should see false with RuleMatch")
+            .that(&detail.value)
+            .contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch);
+        let detail = flag.evaluate(&bob, &store);
+        asserting!("bob is not in segment and should see fallthrough")
+            .that(&detail.value)
+            .contains_value(&Bool(true));
+        assert_that!(detail.reason).is_equal_to(Reason::Fallthrough);
+    }
+}
