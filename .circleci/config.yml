@@ -1,0 +1,31 @@
+version: 2.1
+
+workflows:
+  test:
+    jobs:
+      - test
+
+jobs:
+  test:
+    docker:
+      - image: rust:1.50
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cargo cache
+          keys:
+            # when lock file changes, use increasingly general patterns to restore cache
+            - v1-cargo-cache-{{ arch }}-{{ .Branch }}-{{ checksum "Cargo.lock" }}
+            - v1-cargo-cache-{{ arch }}-{{ .Branch }}-
+            - v1-cargo-cache-{{ arch }}-
+      - run:
+          command: cargo fetch --locked
+      - save_cache:
+          name: Save Cargo cache
+          paths:
+            - ~/.cargo
+          key: v1-cargo-cache-{{ arch }}-{{ .Branch }}-{{ checksum "Cargo.lock" }}
+
+      - run:
+          name: Run tests
+          command: cargo test
