@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 
 use chrono::{self, TimeZone, Utc};
+use lazy_static::lazy_static;
 use log::warn;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 
 const USER_CUSTOM_STARTING_CAPACITY: usize = 10;
 const BUCKET_SCALE_INT: i64 = 0x0FFF_FFFF_FFFF_FFFF;
 const BUCKET_SCALE: f32 = BUCKET_SCALE_INT as f32;
+
+lazy_static! {
+    static ref VERSION_NUMERIC_COMPONENTS_REGEX: Regex =
+        Regex::new(r"^\d+(\.\d+)?(\.\d+)?").unwrap();
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -133,8 +140,27 @@ impl AttributeValue {
     /// It will return None if it cannot parse it, or for non-string attributes.
     pub fn as_semver(&self) -> Option<semver::Version> {
         let version_str = self.as_str()?.as_str();
-        semver::Version::parse(version_str).ok()
-        // TODO implement LD-specific semver extensions
+        semver::Version::parse(version_str)
+            .ok()
+            .or_else(|| AttributeValue::parse_semver_loose(version_str))
+    }
+
+    fn parse_semver_loose(version_str: &str) -> Option<semver::Version> {
+        let parts = VERSION_NUMERIC_COMPONENTS_REGEX.captures(version_str)?;
+
+        let numeric_parts = parts.get(0).unwrap();
+        let mut transformed_version_str = numeric_parts.as_str().to_string();
+
+        for i in 1..parts.len() {
+            if parts.get(i).is_none() {
+                transformed_version_str.push_str(".0");
+            }
+        }
+
+        let rest = &version_str[numeric_parts.end()..];
+        transformed_version_str.push_str(rest);
+
+        semver::Version::parse(&transformed_version_str).ok()
     }
 
     pub fn find<P>(&self, p: P) -> Option<&AttributeValue>
@@ -325,39 +351,39 @@ impl UserBuilder {
         }
     }
 
-    pub fn secondary(&mut self, secondary: String) -> &Self {
-        self.secondary = Some(secondary);
+    pub fn secondary(&mut self, secondary: impl Into<String>) -> &Self {
+        self.secondary = Some(secondary.into());
         self
     }
-    pub fn ip(&mut self, ip: String) -> &Self {
-        self.ip = Some(ip);
+    pub fn ip(&mut self, ip: impl Into<String>) -> &Self {
+        self.ip = Some(ip.into());
         self
     }
-    pub fn country(&mut self, country: String) -> &Self {
-        self.country = Some(country);
-        self
-    }
-
-    pub fn email(&mut self, email: String) -> &Self {
-        self.email = Some(email);
+    pub fn country(&mut self, country: impl Into<String>) -> &Self {
+        self.country = Some(country.into());
         self
     }
 
-    pub fn first_name(&mut self, first_name: String) -> &Self {
-        self.first_name = Some(first_name);
-        self
-    }
-    pub fn last_name(&mut self, last_name: String) -> &Self {
-        self.last_name = Some(last_name);
-        self
-    }
-    pub fn avatar(&mut self, avatar: String) -> &Self {
-        self.avatar = Some(avatar);
+    pub fn email(&mut self, email: impl Into<String>) -> &Self {
+        self.email = Some(email.into());
         self
     }
 
-    pub fn name(&mut self, name: String) -> &Self {
-        self.name = Some(name);
+    pub fn first_name(&mut self, first_name: impl Into<String>) -> &Self {
+        self.first_name = Some(first_name.into());
+        self
+    }
+    pub fn last_name(&mut self, last_name: impl Into<String>) -> &Self {
+        self.last_name = Some(last_name.into());
+        self
+    }
+    pub fn avatar(&mut self, avatar: impl Into<String>) -> &Self {
+        self.avatar = Some(avatar.into());
+        self
+    }
+
+    pub fn name(&mut self, name: impl Into<String>) -> &Self {
+        self.name = Some(name.into());
         self
     }
 
