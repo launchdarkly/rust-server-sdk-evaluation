@@ -124,8 +124,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use spectral::prelude::*;
     use maplit::hashmap;
+    use spectral::prelude::*;
 
     use crate::eval::Reason::*;
     use crate::flag_value::FlagValue::Bool;
@@ -137,9 +137,9 @@ mod tests {
     }
 
     impl TestStore {
-        fn new() -> TestStore{
-            TestStore{
-                flags: hashmap!{
+        fn new() -> TestStore {
+            TestStore {
+                flags: hashmap! {
                     "flag".to_string() => serde_json::from_str(r#"{
                         "key": "flag",
                         "version": 42,
@@ -253,7 +253,7 @@ mod tests {
                         "salt": "salty"
                     }"#).unwrap(),
                 },
-                segments: hashmap!{
+                segments: hashmap! {
                     "segment".to_string() => serde_json::from_str(r#"{
                         "key": "segment",
                         "included": ["alice"],

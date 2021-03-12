@@ -108,7 +108,7 @@ impl Op {
             // string ops
             Op::StartsWith => string_op(lhs, rhs, |l, r| l.starts_with(r)),
             Op::EndsWith => string_op(lhs, rhs, |l, r| l.ends_with(r)),
-            Op::Contains => string_op(lhs, rhs, |l, r| l.find(r).is_some()),
+            Op::Contains => string_op(lhs, rhs, |l, r| l.contains(r)),
             Op::Matches => string_op(lhs, rhs, |l, r| match Regex::new(r) {
                 Ok(re) => re.is_match(l),
                 Err(e) => {
@@ -181,20 +181,24 @@ fn semver_op<F: Fn(semver::Version, semver::Version) -> bool>(
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
     use std::collections::HashMap;
+    use std::time::SystemTime;
 
     use maplit::hashmap;
 
     use super::*;
-    use crate::segment::Segment;
     use crate::flag::Flag;
+    use crate::segment::Segment;
 
     struct TestStore;
 
     impl Store for TestStore {
-        fn flag(&self, _flag_key: &str) -> Option<&Flag> { None }
-        fn segment(&self, _segment_key: &str) -> Option<&Segment> { None }
+        fn flag(&self, _flag_key: &str) -> Option<&Flag> {
+            None
+        }
+        fn segment(&self, _segment_key: &str) -> Option<&Segment> {
+            None
+        }
     }
 
     fn astring(s: &str) -> AttributeValue {
@@ -475,42 +479,42 @@ mod tests {
             .build();
         let user_without_attr = User::with_key("uwa").build();
 
-        assert!(one_val_clause.matches(&matching_user, &TestStore{}));
-        assert!(!one_val_clause.matches(&non_matching_user, &TestStore{}));
-        assert!(!one_val_clause.matches(&user_without_attr, &TestStore{}));
+        assert!(one_val_clause.matches(&matching_user, &TestStore {}));
+        assert!(!one_val_clause.matches(&non_matching_user, &TestStore {}));
+        assert!(!one_val_clause.matches(&user_without_attr, &TestStore {}));
 
-        assert!(!negated_clause.matches(&matching_user, &TestStore{}));
-        assert!(negated_clause.matches(&non_matching_user, &TestStore{}));
+        assert!(!negated_clause.matches(&matching_user, &TestStore {}));
+        assert!(negated_clause.matches(&non_matching_user, &TestStore {}));
 
         assert!(
-            !negated_clause.matches(&user_without_attr, &TestStore{}),
+            !negated_clause.matches(&user_without_attr, &TestStore {}),
             "targeting missing attribute does not match even when negated"
         );
 
         assert!(
-            many_val_clause.matches(&matching_user, &TestStore{}),
+            many_val_clause.matches(&matching_user, &TestStore {}),
             "requires only one of the values"
         );
-        assert!(!many_val_clause.matches(&non_matching_user, &TestStore{}));
-        assert!(!many_val_clause.matches(&user_without_attr, &TestStore{}));
+        assert!(!many_val_clause.matches(&non_matching_user, &TestStore {}));
+        assert!(!many_val_clause.matches(&user_without_attr, &TestStore {}));
 
         assert!(
-            !negated_many_val_clause.matches(&matching_user, &TestStore{}),
+            !negated_many_val_clause.matches(&matching_user, &TestStore {}),
             "requires all values are missing"
         );
-        assert!(negated_many_val_clause.matches(&non_matching_user, &TestStore{}));
+        assert!(negated_many_val_clause.matches(&non_matching_user, &TestStore {}));
 
         assert!(
-            !negated_many_val_clause.matches(&user_without_attr, &TestStore{}),
+            !negated_many_val_clause.matches(&user_without_attr, &TestStore {}),
             "targeting missing attribute does not match even when negated"
         );
 
         assert!(
-            key_clause.matches(&matching_user, &TestStore{}),
+            key_clause.matches(&matching_user, &TestStore {}),
             "should match key"
         );
         assert!(
-            !key_clause.matches(&non_matching_user, &TestStore{}),
+            !key_clause.matches(&non_matching_user, &TestStore {}),
             "should not match non-matching key"
         );
 
@@ -518,11 +522,11 @@ mod tests {
             .custom(hashmap! {"a".into() => vec!["foo", "bar", "lol"].into()})
             .build();
 
-        assert!(one_val_clause.matches(&user_with_many, &TestStore{}));
-        assert!(many_val_clause.matches(&user_with_many, &TestStore{}));
+        assert!(one_val_clause.matches(&user_with_many, &TestStore {}));
+        assert!(many_val_clause.matches(&user_with_many, &TestStore {}));
 
-        assert!(!negated_clause.matches(&user_with_many, &TestStore{}));
-        assert!(!negated_many_val_clause.matches(&user_with_many, &TestStore{}));
+        assert!(!negated_clause.matches(&user_with_many, &TestStore {}));
+        assert!(!negated_many_val_clause.matches(&user_with_many, &TestStore {}));
     }
 
     struct AttributeTestCase {
@@ -590,18 +594,18 @@ mod tests {
             };
 
             assert!(
-                clause.matches(&test_case.matching_user, &TestStore{}),
+                clause.matches(&test_case.matching_user, &TestStore {}),
                 "should match {}",
                 attr
             );
             assert!(
-                !clause.matches(&test_case.non_matching_user, &TestStore{}),
+                !clause.matches(&test_case.non_matching_user, &TestStore {}),
                 "should not match non-matching {}",
                 attr
             );
             if let Some(user_without_attr) = test_case.user_without_attr {
                 assert!(
-                    !clause.matches(&user_without_attr, &TestStore{}),
+                    !clause.matches(&user_without_attr, &TestStore {}),
                     "should not match user with null {}",
                     attr
                 );
@@ -622,9 +626,9 @@ mod tests {
         let non_anon_user = User::with_key("nonanon").anonymous(false).build();
         let implicitly_non_anon_user = User::with_key("implicit").build();
 
-        assert!(clause.matches(&anon_user, &TestStore{}));
-        assert!(!clause.matches(&non_anon_user, &TestStore{}));
-        assert!(!clause.matches(&implicitly_non_anon_user, &TestStore{}));
+        assert!(clause.matches(&anon_user, &TestStore {}));
+        assert!(!clause.matches(&non_anon_user, &TestStore {}));
+        assert!(!clause.matches(&implicitly_non_anon_user, &TestStore {}));
     }
 
     #[test]
@@ -651,17 +655,17 @@ mod tests {
                 .build();
 
             assert!(
-                clause.matches(&matching_user, &TestStore{}),
+                clause.matches(&matching_user, &TestStore {}),
                 "should match {}",
                 attr
             );
             assert!(
-                !clause.matches(&non_matching_user, &TestStore{}),
+                !clause.matches(&non_matching_user, &TestStore {}),
                 "should not match non-matching {}",
                 attr
             );
             assert!(
-                !clause.matches(&user_without_attr, &TestStore{}),
+                !clause.matches(&user_without_attr, &TestStore {}),
                 "should not match user with null {}",
                 attr
             );
