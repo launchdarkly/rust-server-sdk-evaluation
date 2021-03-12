@@ -27,5 +27,8 @@ jobs:
           key: v1-cargo-cache-{{ arch }}-{{ .Branch }}-{{ checksum "Cargo.toml" }}
 
       - run:
-          name: Run tests
-          command: cargo test
+          name: Run tests and build
+          command: |
+            cargo test
+            cargo build
+            cargo build --target wasm32-wasi
