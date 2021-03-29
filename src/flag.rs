@@ -22,6 +22,7 @@ pub struct Flag {
     fallthrough: VariationOrRolloutOrMalformed,
     off_variation: Option<VariationIndex>,
     variations: Vec<FlagValue>,
+    pub client_side_availability: ClientSideAvailability,
 
     salt: String,
 }
@@ -36,6 +37,13 @@ pub struct Prereq {
 struct Target {
     values: Vec<String>,
     variation: VariationIndex,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientSideAvailability {
+    pub using_mobile_key: bool,
+    pub using_environment_id: bool,
 }
 
 impl Flag {
@@ -150,6 +158,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "flagWithTarget".to_string() => serde_json::from_str(r#"{
@@ -165,6 +177,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "flagWithUnsatisfiedPrereq".to_string() => serde_json::from_str(r#"{
@@ -180,6 +196,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "flagWithSatisfiedPrereq".to_string() => serde_json::from_str(r#"{
@@ -195,6 +215,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "prereq".to_string() => serde_json::from_str(r#"{
@@ -210,6 +234,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "flagWithInRule".to_string() => serde_json::from_str(r#"{
@@ -230,6 +258,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                     "flagWithSegmentMatchRule".to_string() => serde_json::from_str(r#"{
@@ -250,6 +282,10 @@ mod tests {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
                         "salt": "salty"
                     }"#).unwrap(),
                 },
