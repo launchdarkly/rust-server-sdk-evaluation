@@ -58,7 +58,8 @@ impl Flag {
 
         for prereq in &self.prerequisites {
             if let Some(flag) = store.flag(&prereq.key) {
-                if flag.evaluate(user, store).variation_index != Some(prereq.variation) {
+                if !flag.on || flag.evaluate(user, store).variation_index != Some(prereq.variation)
+                {
                     // TODO capture prereq event
                     return self.off_value(Reason::PrerequisiteFailed {
                         prerequisite_key: prereq.key.to_string(),
@@ -183,14 +184,33 @@ mod tests {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
-                    "flagWithUnsatisfiedPrereq".to_string() => serde_json::from_str(r#"{
-                        "key": "flagWithUnsatisfiedPrereq",
+                    "flagWithMissingPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithMissingPrereq",
                         "version": 42,
                         "on": true,
                         "targets": [],
                         "rules": [],
                         "prerequisites": [{
                             "key": "badPrereq",
+                            "variation": 1
+                        }],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithOffPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithOffPrereq",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [{
+                            "key": "offPrereq",
                             "variation": 1
                         }],
                         "fallthrough": {"variation": 1},
@@ -233,6 +253,22 @@ mod tests {
                         "prerequisites": [],
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "offPrereq".to_string() => serde_json::from_str(r#"{
+                        "key": "offPrereq",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 1,
                         "variations": [false, true],
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
@@ -406,7 +442,7 @@ mod tests {
     #[test]
     fn test_eval_flag_unsatisfied_prereq() {
         let store = TestStore::new();
-        let flag = store.flag("flagWithUnsatisfiedPrereq").unwrap().clone();
+        let flag = store.flag("flagWithMissingPrereq").unwrap().clone();
         assert!(flag.on);
 
         let alice = User::with_key("alice").build();
@@ -419,6 +455,21 @@ mod tests {
                 prerequisite_key: "badPrereq".to_string(),
             });
         }
+    }
+
+    #[test]
+    fn test_eval_flag_off_prereq() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithOffPrereq").unwrap().clone();
+        assert!(flag.on);
+
+        let alice = User::with_key("alice").build();
+
+        let detail = flag.evaluate(&alice, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(&PrerequisiteFailed {
+            prerequisite_key: "offPrereq".to_string(),
+        });
     }
 
     #[test]
