@@ -16,10 +16,13 @@ pub struct Clause {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FlagRule {
+    pub id: String,
     clauses: Vec<Clause>,
     #[serde(flatten)]
     pub variation_or_rollout: VariationOrRollout,
+    pub track_events: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]

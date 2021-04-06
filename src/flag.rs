@@ -12,6 +12,8 @@ use crate::variation::{VariationIndex, VariationOrRollout, VariationOrRolloutOrM
 pub struct Flag {
     pub key: String,
     pub version: u64,
+    #[serde(default)]
+    deleted: bool,
 
     on: bool,
 
@@ -25,6 +27,13 @@ pub struct Flag {
     pub client_side_availability: ClientSideAvailability,
 
     salt: String,
+
+    #[serde(default)]
+    pub track_events: bool,
+    #[serde(default)]
+    pub track_events_fallthrough: bool,
+    #[serde(default)]
+    pub debug_events_until_date: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -80,12 +89,15 @@ impl Flag {
             }
         }
 
-        for rule in &self.rules {
+        for (rule_index, rule) in self.rules.iter().enumerate() {
             if rule.matches(&user, store) {
                 return self.value_for_variation_or_rollout(
                     &rule.variation_or_rollout,
                     &user,
-                    Reason::RuleMatch,
+                    Reason::RuleMatch {
+                        rule_index,
+                        rule_id: rule.id.clone(),
+                    },
                 );
             }
         }
@@ -126,6 +138,21 @@ impl Flag {
                 self.variation(variation, reason)
             })
     }
+
+    pub fn is_experimentation_enabled(&self, reason: &Reason) -> bool {
+        match reason {
+            Reason::Fallthrough => self.track_events_fallthrough,
+            Reason::RuleMatch {
+                rule_index,
+                rule_id: _,
+            } => self
+                .rules
+                .get(*rule_index)
+                .map(|rule| rule.track_events)
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -164,6 +191,25 @@ mod tests {
                             "usingMobileKey": true
                         },
                         "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithTrackAndDebugEvents".to_string() => serde_json::from_str(r#"{
+                        "key": "flag",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty",
+                        "trackEvents": true,
+                        "trackEventsFallthrough": true,
+                        "debugEventsUntilDate": 1500000000
                     }"#).unwrap(),
                     "flagWithTarget".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithTarget",
@@ -282,13 +328,15 @@ mod tests {
                         "on": false,
                         "targets": [],
                         "rules": [{
+                            "id": "in-rule",
                             "clauses": [{
                                 "attribute": "team",
                                 "negate": false,
                                 "op": "in",
                                 "values": ["Avengers"]
                             }],
-                            "variation": 0
+                            "variation": 0,
+                            "trackEvents": false
                         }],
                         "prerequisites": [],
                         "fallthrough": {"variation": 1},
@@ -306,13 +354,15 @@ mod tests {
                         "on": true,
                         "targets": [],
                         "rules": [{
+                            "id": "match-rule",
                             "clauses": [{
                                 "attribute": "segmentMatch",
                                 "negate": false,
                                 "op": "segmentMatch",
                                 "values": ["segment"]
                             }],
-                            "variation": 0
+                            "variation": 0,
+                            "trackEvents": false
                         }],
                         "prerequisites": [],
                         "fallthrough": {"variation": 1},
@@ -436,7 +486,10 @@ mod tests {
         let detail = flag.evaluate(&bob, &store);
         assert_that!(detail.value).contains_value(&Bool(false));
         assert_that!(detail.variation_index).contains_value(0);
-        assert_that!(detail.reason).is_equal_to(&RuleMatch);
+        assert_that!(detail.reason).is_equal_to(&RuleMatch {
+            rule_id: "in-rule".to_string(),
+            rule_index: 0,
+        });
     }
 
     #[test]
@@ -515,7 +568,10 @@ mod tests {
         asserting!("alice is in segment, should see false with RuleMatch")
             .that(&detail.value)
             .contains_value(&Bool(false));
-        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch);
+        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch {
+            rule_id: "match-rule".to_string(),
+            rule_index: 0,
+        });
         let detail = flag.evaluate(&bob, &store);
         asserting!("bob is not in segment and should see fallthrough")
             .that(&detail.value)
