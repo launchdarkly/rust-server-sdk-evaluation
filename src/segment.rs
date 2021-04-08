@@ -25,10 +25,7 @@ struct SegmentRule {
 impl Segment {
     // TODO segment explanations
     pub fn contains(&self, user: &User) -> bool {
-        let user_key = match user.key() {
-            Some(key) => key,
-            None => return false,
-        };
+        let user_key = user.key();
 
         if self.included.contains(user_key) {
             return true;

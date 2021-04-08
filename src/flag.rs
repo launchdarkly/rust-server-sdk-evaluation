@@ -57,10 +57,6 @@ pub struct ClientSideAvailability {
 
 impl Flag {
     pub fn evaluate(&self, user: &User, store: &dyn Store) -> Detail<&FlagValue> {
-        if user.key().is_none() {
-            return Detail::err(eval::Error::UserNotSpecified);
-        }
-
         if !self.on {
             return self.off_value(Reason::Off);
         }
@@ -83,7 +79,7 @@ impl Flag {
 
         for target in &self.targets {
             for value in &target.values {
-                if Some(value) == user.key() {
+                if value == user.key() {
                     return self.variation(target.variation, Reason::TargetMatch);
                 }
             }

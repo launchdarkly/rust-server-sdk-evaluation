@@ -198,8 +198,8 @@ impl AttributeValue {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct User {
-    #[serde(rename = "key", skip_serializing_if = "Option::is_none")]
-    _key: Option<AttributeValue>,
+    #[serde(rename = "key")]
+    _key: AttributeValue,
     #[serde(rename = "secondary", skip_serializing_if = "Option::is_none")]
     _secondary: Option<AttributeValue>,
     #[serde(rename = "ip", skip_serializing_if = "Option::is_none")]
@@ -228,8 +228,11 @@ impl User {
         UserBuilder::new(key)
     }
 
-    pub fn key(&self) -> Option<&String> {
-        self._key.as_ref().and_then(|av| av.as_str())
+    pub fn key(&self) -> &String {
+        // TODO find a way to guarantee a string result without panicking
+        // https://github.com/launchdarkly/rust-server-sdk-evaluation/pull/9#pullrequestreview-631572651
+        // https://app.clubhouse.io/launchdarkly/story/105276/make-sure-user-key-can-t-panic
+        self._key.as_str().unwrap()
     }
     pub fn secondary(&self) -> Option<&String> {
         self._secondary.as_ref().and_then(|av| av.as_str())
@@ -261,7 +264,7 @@ impl User {
 
     pub fn value_of(&self, attr: &str) -> Option<&AttributeValue> {
         match attr {
-            "key" => self._key.as_ref(),
+            "key" => Some(&self._key),
             "secondary" => self._secondary.as_ref(),
             "ip" => self._ip.as_ref(),
             "country" => self._country.as_ref(),
@@ -283,7 +286,7 @@ impl User {
     pub fn bucket(&self, bucketing_key: &str, by_attr: Option<&str>, salt: &str) -> f32 {
         let attr_value = match by_attr {
             Some(attr) => self.value_of(attr),
-            None => self._key.as_ref(),
+            None => Some(&self._key),
         };
         self._bucket(bucketing_key, attr_value, salt).unwrap_or(0.0)
     }
@@ -317,7 +320,7 @@ impl User {
 }
 
 pub struct UserBuilder {
-    key: Option<String>,
+    key: String,
     secondary: Option<String>,
     ip: Option<String>,
     country: Option<String>,
@@ -332,12 +335,8 @@ pub struct UserBuilder {
 
 impl UserBuilder {
     pub fn new(key: impl Into<String>) -> Self {
-        Self::new_with_optional_key(Some(key.into()))
-    }
-
-    pub fn new_with_optional_key(key: Option<String>) -> Self {
         Self {
-            key,
+            key: key.into(),
             secondary: None,
             ip: None,
             country: None,
@@ -400,7 +399,7 @@ impl UserBuilder {
     pub fn build(&self) -> User {
         use AttributeValue::String as AString;
         User {
-            _key: self.key.clone().map(AString),
+            _key: AString(self.key.clone()),
             _secondary: self.secondary.clone().map(AString),
             _ip: self.ip.clone().map(AString),
             _country: self.country.clone().map(AString),
