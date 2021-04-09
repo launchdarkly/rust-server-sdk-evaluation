@@ -8,10 +8,19 @@ use crate::user::User;
 pub struct Segment {
     pub key: String,
 
-    included: Vec<String>,
-    excluded: Vec<String>,
+    pub included: Vec<String>,
+    pub excluded: Vec<String>,
     rules: Vec<SegmentRule>,
     salt: String,
+
+    #[serde(default)]
+    pub unbounded: bool,
+    #[serde(default)]
+    generation: Option<i64>,
+
+    version: i64,
+    #[serde(default)]
+    deleted: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -41,6 +50,13 @@ impl Segment {
         }
 
         false
+    }
+
+    pub fn unbounded_segment_id(&self) -> String {
+        match self.generation {
+            None | Some(0) => self.key.clone(),
+            Some(generation) => format!("{}.g{}", self.key, generation),
+        }
     }
 }
 

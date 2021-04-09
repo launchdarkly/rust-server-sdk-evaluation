@@ -377,7 +377,8 @@ mod tests {
                         "included": ["alice"],
                         "excluded": [],
                         "rules": [],
-                        "salt": "salty"
+                        "salt": "salty",
+                        "version": 1
                     }"#).unwrap()
                 },
             }
