@@ -67,3 +67,62 @@ impl From<VariationOrRollout> for VariationOrRolloutOrMalformed {
         VariationOrRolloutOrMalformed::VariationOrRollout(vor)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::user::User;
+
+    use super::{VariationOrRollout, VariationOrRolloutOrMalformed, WeightedVariation};
+    use spectral::prelude::*;
+
+    #[test]
+    fn test_parse_variation_or_rollout() {
+        let variation: VariationOrRolloutOrMalformed =
+            serde_json::from_str(r#"{"variation":4}"#).expect("should parse");
+        assert_that!(variation.get()).is_ok_containing(&VariationOrRollout::Variation(4));
+
+        let rollout: VariationOrRolloutOrMalformed =
+            serde_json::from_str(r#"{"rollout":{"variations":[{"variation":1,"weight":100000}]}}"#)
+                .expect("should parse");
+        assert_that!(rollout.get()).is_ok_containing(&VariationOrRollout::Rollout {
+            bucket_by: None,
+            variations: vec![WeightedVariation {
+                variation: 1,
+                weight: 100000.0,
+            }],
+        });
+
+        let malformed: VariationOrRolloutOrMalformed =
+            serde_json::from_str("{}").expect("should parse");
+        assert_that!(malformed.get()).is_err();
+    }
+
+    #[test]
+    fn variation_index_for_user() {
+        const HASH_KEY: &str = "hashKey";
+        const SALT: &str = "saltyA";
+
+        let wv1 = WeightedVariation {
+            variation: 0,
+            weight: 60_000.0,
+        };
+        let wv2 = WeightedVariation {
+            variation: 1,
+            weight: 40_000.0,
+        };
+        let rollout = VariationOrRollout::Rollout {
+            bucket_by: None,
+            variations: vec![wv1, wv2],
+        };
+
+        asserting!("userKeyA should get variation 0")
+            .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyA").build(), SALT))
+            .contains_value(0);
+        asserting!("userKeyB should get variation 1")
+            .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyB").build(), SALT))
+            .contains_value(1);
+        asserting!("userKeyC should get variation 0")
+            .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyC").build(), SALT))
+            .contains_value(0);
+    }
+}
