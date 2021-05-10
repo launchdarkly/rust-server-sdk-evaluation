@@ -34,12 +34,12 @@ struct SegmentRule {
 impl Segment {
     // TODO segment explanations
     pub fn contains(&self, user: &User) -> bool {
-        let user_key = user.key();
+        let user_key = user.key().to_string();
 
-        if self.included.contains(user_key) {
+        if self.included.contains(&user_key) {
             return true;
         }
-        if self.excluded.contains(user_key) {
+        if self.excluded.contains(&user_key) {
             return false;
         }
 

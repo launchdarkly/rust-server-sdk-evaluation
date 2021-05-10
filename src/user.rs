@@ -199,25 +199,25 @@ impl AttributeValue {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct User {
     #[serde(rename = "key")]
-    _key: AttributeValue,
+    _key: String,
     #[serde(rename = "secondary", skip_serializing_if = "Option::is_none")]
-    _secondary: Option<AttributeValue>,
+    _secondary: Option<String>,
     #[serde(rename = "ip", skip_serializing_if = "Option::is_none")]
-    _ip: Option<AttributeValue>,
+    _ip: Option<String>,
     #[serde(rename = "country", skip_serializing_if = "Option::is_none")]
-    _country: Option<AttributeValue>,
+    _country: Option<String>,
     #[serde(rename = "email", skip_serializing_if = "Option::is_none")]
-    _email: Option<AttributeValue>,
+    _email: Option<String>,
     #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
-    _first_name: Option<AttributeValue>,
+    _first_name: Option<String>,
     #[serde(rename = "lastName", skip_serializing_if = "Option::is_none")]
-    _last_name: Option<AttributeValue>,
+    _last_name: Option<String>,
     #[serde(rename = "avatar", skip_serializing_if = "Option::is_none")]
-    _avatar: Option<AttributeValue>,
+    _avatar: Option<String>,
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
-    _name: Option<AttributeValue>,
+    _name: Option<String>,
     #[serde(rename = "anonymous", skip_serializing_if = "Option::is_none")]
-    _anonymous: Option<AttributeValue>,
+    _anonymous: Option<bool>,
 
     #[serde(default)]
     custom: HashMap<String, AttributeValue>,
@@ -228,53 +228,50 @@ impl User {
         UserBuilder::new(key)
     }
 
-    pub fn key(&self) -> &String {
-        // TODO find a way to guarantee a string result without panicking
-        // https://github.com/launchdarkly/rust-server-sdk-evaluation/pull/9#pullrequestreview-631572651
-        // https://app.clubhouse.io/launchdarkly/story/105276/make-sure-user-key-can-t-panic
-        self._key.as_str().unwrap()
+    pub fn key(&self) -> &str {
+        &self._key
     }
-    pub fn secondary(&self) -> Option<&String> {
-        self._secondary.as_ref().and_then(|av| av.as_str())
+    pub fn secondary(&self) -> Option<&str> {
+        self._secondary.as_deref()
     }
-    pub fn ip(&self) -> Option<&String> {
-        self._ip.as_ref().and_then(|av| av.as_str())
+    pub fn ip(&self) -> Option<&str> {
+        self._ip.as_deref()
     }
-    pub fn country(&self) -> Option<&String> {
-        self._country.as_ref().and_then(|av| av.as_str())
+    pub fn country(&self) -> Option<&str> {
+        self._country.as_deref()
     }
-    pub fn email(&self) -> Option<&String> {
-        self._email.as_ref().and_then(|av| av.as_str())
+    pub fn email(&self) -> Option<&str> {
+        self._email.as_deref()
     }
-    pub fn first_name(&self) -> Option<&String> {
-        self._first_name.as_ref().and_then(|av| av.as_str())
+    pub fn first_name(&self) -> Option<&str> {
+        self._first_name.as_deref()
     }
-    pub fn last_name(&self) -> Option<&String> {
-        self._last_name.as_ref().and_then(|av| av.as_str())
+    pub fn last_name(&self) -> Option<&str> {
+        self._last_name.as_deref()
     }
-    pub fn avatar(&self) -> Option<&String> {
-        self._avatar.as_ref().and_then(|av| av.as_str())
+    pub fn avatar(&self) -> Option<&str> {
+        self._avatar.as_deref()
     }
-    pub fn name(&self) -> Option<&String> {
-        self._name.as_ref().and_then(|av| av.as_str())
+    pub fn name(&self) -> Option<&str> {
+        self._name.as_deref()
     }
     pub fn anonymous(&self) -> Option<bool> {
-        self._anonymous.as_ref().and_then(|av| av.as_bool())
+        self._anonymous
     }
 
-    pub fn value_of(&self, attr: &str) -> Option<&AttributeValue> {
+    pub fn value_of(&self, attr: &str) -> Option<AttributeValue> {
         match attr {
-            "key" => Some(&self._key),
-            "secondary" => self._secondary.as_ref(),
-            "ip" => self._ip.as_ref(),
-            "country" => self._country.as_ref(),
-            "email" => self._email.as_ref(),
-            "firstName" => self._first_name.as_ref(),
-            "lastName" => self._last_name.as_ref(),
-            "avatar" => self._avatar.as_ref(),
-            "name" => self._name.as_ref(),
-            "anonymous" => self._anonymous.as_ref(),
-            _ => self.custom.get(attr),
+            "key" => Some(AttributeValue::String(self._key.clone())),
+            "secondary" => self._secondary.as_deref().map(AttributeValue::from),
+            "ip" => self._ip.as_deref().map(AttributeValue::from),
+            "country" => self._country.as_deref().map(AttributeValue::from),
+            "email" => self._email.as_deref().map(AttributeValue::from),
+            "firstName" => self._first_name.as_deref().map(AttributeValue::from),
+            "lastName" => self._last_name.as_deref().map(AttributeValue::from),
+            "avatar" => self._avatar.as_deref().map(AttributeValue::from),
+            "name" => self._name.as_deref().map(AttributeValue::from),
+            "anonymous" => self._anonymous.map(AttributeValue::from),
+            _ => self.custom.get(attr).cloned(),
         }
     }
 
@@ -286,9 +283,10 @@ impl User {
     pub fn bucket(&self, bucketing_key: &str, by_attr: Option<&str>, salt: &str) -> f32 {
         let attr_value = match by_attr {
             Some(attr) => self.value_of(attr),
-            None => Some(&self._key),
+            None => Some(AttributeValue::String(self._key.clone())),
         };
-        self._bucket(bucketing_key, attr_value, salt).unwrap_or(0.0)
+        self._bucket(bucketing_key, attr_value.as_ref(), salt)
+            .unwrap_or(0.0)
     }
 
     fn _bucket(
@@ -397,18 +395,17 @@ impl UserBuilder {
     }
 
     pub fn build(&self) -> User {
-        use AttributeValue::String as AString;
         User {
-            _key: AString(self.key.clone()),
-            _secondary: self.secondary.clone().map(AString),
-            _ip: self.ip.clone().map(AString),
-            _country: self.country.clone().map(AString),
-            _email: self.email.clone().map(AString),
-            _first_name: self.first_name.clone().map(AString),
-            _last_name: self.last_name.clone().map(AString),
-            _avatar: self.avatar.clone().map(AString),
-            _name: self.name.clone().map(AString),
-            _anonymous: self.anonymous.map(AttributeValue::Bool),
+            _key: self.key.clone(),
+            _secondary: self.secondary.clone(),
+            _ip: self.ip.clone(),
+            _country: self.country.clone(),
+            _email: self.email.clone(),
+            _first_name: self.first_name.clone(),
+            _last_name: self.last_name.clone(),
+            _avatar: self.avatar.clone(),
+            _name: self.name.clone(),
+            _anonymous: self.anonymous,
             custom: self.custom.clone(),
         }
     }
