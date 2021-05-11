@@ -4,7 +4,7 @@ use chrono::{self, TimeZone, Utc};
 use lazy_static::lazy_static;
 use log::warn;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha1::Sha1;
 
 const USER_CUSTOM_STARTING_CAPACITY: usize = 10;
@@ -219,8 +219,17 @@ pub struct User {
     #[serde(rename = "anonymous", skip_serializing_if = "Option::is_none")]
     _anonymous: Option<bool>,
 
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     custom: HashMap<String, AttributeValue>,
+}
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 impl User {
@@ -463,5 +472,14 @@ mod tests {
         let user = User::with_key(USER_KEY).custom(custom).build();
         let bucket = user.bucket("hashKey", Some("floatAttr"), "saltyA");
         assert_that!(bucket).is_close_to(0.0, BUCKET_TOLERANCE);
+    }
+
+    #[test]
+    fn null_custom_is_default() {
+        let user1: User = serde_json::from_str(r#"{"key": "foo"}"#).unwrap();
+        assert_eq!(user1.custom, hashmap![]);
+
+        let user2: User = serde_json::from_str(r#"{"key": "foo", "custom": null}"#).unwrap();
+        assert_eq!(user2.custom, hashmap![]);
     }
 }
