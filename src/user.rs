@@ -475,6 +475,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_user_rejects_missing_key() {
+        let result: serde_json::Result<User> = serde_json::from_str(r"{}");
+        assert_that!(result).is_err();
+    }
+
+    #[test]
+    fn parse_user_rejects_null_key() {
+        let result: serde_json::Result<User> = serde_json::from_str(r#"{"key": null}"#);
+        assert_that!(result).is_err();
+    }
+
+    #[test]
     fn null_custom_is_default() {
         let user1: User = serde_json::from_str(r#"{"key": "foo"}"#).unwrap();
         assert_eq!(user1.custom, hashmap![]);
