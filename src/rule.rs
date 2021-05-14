@@ -284,28 +284,37 @@ mod tests {
 
     #[test]
     fn test_op_matches() {
-        // degenerate cases
-        assert!(Op::Matches.matches(&astring(""), &astring("")));
-        assert!(Op::Matches.matches(&astring("a"), &astring("")));
+        fn should_match(text: &str, pattern: &str) {
+            assert!(
+                Op::Matches.matches(&astring(text), &astring(pattern)),
+                "`{}` should match `{}`",
+                text,
+                pattern
+            );
+        }
 
-        // simple regexes
-        assert!(Op::Matches.matches(&astring("a"), &astring("a")));
-        assert!(Op::Matches.matches(&astring("a"), &astring(".")));
-        assert!(Op::Matches.matches(&astring("abc"), &astring(".*")));
+        fn should_not_match(text: &str, pattern: &str) {
+            assert!(
+                !Op::Matches.matches(&astring(text), &astring(pattern)),
+                "`{}` should not match `{}`",
+                text,
+                pattern
+            );
+        }
 
-        assert!(!Op::Matches.matches(&astring(""), &astring(".")));
+        should_match("", "");
+        should_match("a", "");
+        should_match("a", "a");
+        should_match("a", ".");
+        should_match("hello world", "hello.*rld");
+        should_match("hello world", "hello.*orl");
+        should_match("hello world", "l+");
+        should_match("hello world", "(world|planet)");
 
-        assert!(
-            Op::Matches.matches(&astring("party"), &astring("art")),
-            "should match part of string"
-        );
-
-        assert!(
-            !Op::Matches.matches(&astring(""), &astring(r"\")),
-            "invalid regex should match nothing"
-        );
-
-        // TODO test more cases
+        should_not_match("", ".");
+        should_not_match("", r"\");
+        should_not_match("hello world", "aloha");
+        should_not_match("hello world", "***bad regex");
     }
 
     #[test]
