@@ -25,8 +25,6 @@ pub enum AttributeValue {
     Float(f64),
     Bool(bool),
     Null,
-    // TODO implement other attribute types
-    NotYetImplemented(serde_json::Value),
 }
 
 impl From<&str> for AttributeValue {
@@ -65,6 +63,15 @@ where
 {
     fn from(v: Vec<T>) -> AttributeValue {
         AttributeValue::Array(v.into_iter().map(|i| i.into()).collect())
+    }
+}
+
+impl<T> std::iter::FromIterator<T> for AttributeValue
+where
+    AttributeValue: From<T>,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        AttributeValue::Array(iter.into_iter().map(AttributeValue::from).collect())
     }
 }
 
@@ -180,10 +187,6 @@ impl AttributeValue {
             }
             AttributeValue::Array(values) => values.iter().find(|v| p(v)),
             AttributeValue::Null => None,
-            AttributeValue::NotYetImplemented(_) => {
-                warn!("attribute type not implemented: {:?}", self);
-                None
-            }
         }
     }
 
@@ -493,5 +496,13 @@ mod tests {
 
         let user2: User = serde_json::from_str(r#"{"key": "foo", "custom": null}"#).unwrap();
         assert_eq!(user2.custom, hashmap![]);
+    }
+
+    #[test]
+    fn collect_array() {
+        assert_eq!(
+            Some(10_i64).into_iter().collect::<AttributeValue>(),
+            AttributeValue::Array(vec![AttributeValue::Int(10_i64)])
+        );
     }
 }
