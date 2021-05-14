@@ -56,6 +56,12 @@ impl From<serde_json::Value> for FlagValue {
     }
 }
 
+// Converting float to int has undefined behaviour for huge floats: https://stackoverflow.com/a/41139453.
+// To avoid this, refuse to convert floats with magnitude greater than 2**53 - 1, after which 64-bit floats no longer
+// retain integer precision. We could go a few orders of magnitude higher without triggering the UB, but this seems like
+// the least surprising place to put a breakpoint.
+const FLOAT_TO_INT_MAX: f64 = 9007199254740991_f64;
+
 impl FlagValue {
     // TODO implement type coercion here?
 
@@ -92,10 +98,8 @@ impl FlagValue {
     pub fn as_int(&self) -> Option<i64> {
         match self {
             FlagValue::Int(i) => Some(*i),
-            _ => {
-                // TODO this has undefined behaviour for huge floats: https://stackoverflow.com/a/41139453
-                self.as_float().map(|f| f.round() as i64)
-            }
+            FlagValue::Float(f) if f.abs() <= FLOAT_TO_INT_MAX => Some(*f as i64),
+            _ => None,
         }
     }
 
@@ -107,6 +111,29 @@ impl FlagValue {
             FlagValue::Float(f) => Some(Value::from(*f)),
             FlagValue::Int(i) => Some(Value::from(*i)),
             FlagValue::Json(v) => Some(v.clone()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spectral::prelude::*;
+
+    #[test]
+    fn float_bounds() {
+        let test_cases = vec![
+            (1.99, Some(1)),
+            (9007199254740990.0, Some(9007199254740990)),
+            (9007199254740991.0, Some(9007199254740991)),
+            (9007199254740992.0, None),
+            (-1.99, Some(-1)),
+            (-9007199254740990.0, Some(-9007199254740990)),
+            (-9007199254740991.0, Some(-9007199254740991)),
+            (-9007199254740992.0, None),
+        ];
+        for (have, expect) in test_cases {
+            assert_that!(FlagValue::Float(have).as_int()).is_equal_to(expect);
         }
     }
 }
