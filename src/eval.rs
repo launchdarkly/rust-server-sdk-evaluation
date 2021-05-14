@@ -104,6 +104,7 @@ pub enum Reason {
     #[serde(rename_all = "camelCase")]
     RuleMatch {
         rule_index: usize,
+        #[serde(skip_serializing_if = "String::is_empty")]
         rule_id: String,
     },
     // PrerequisiteFailed indicates that the flag was considered off because it had at

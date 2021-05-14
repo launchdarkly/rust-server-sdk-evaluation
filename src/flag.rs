@@ -11,6 +11,7 @@ use crate::variation::{VariationIndex, VariationOrRollout, VariationOrRolloutOrM
 #[serde(rename_all = "camelCase")]
 pub struct Flag {
     pub key: String,
+    #[serde(default)]
     pub version: u64,
     #[serde(default)]
     deleted: bool,
