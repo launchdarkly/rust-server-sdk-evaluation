@@ -63,8 +63,6 @@ impl From<serde_json::Value> for FlagValue {
 const FLOAT_TO_INT_MAX: f64 = 9007199254740991_f64;
 
 impl FlagValue {
-    // TODO implement type coercion here?
-
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             FlagValue::Bool(b) => Some(*b),

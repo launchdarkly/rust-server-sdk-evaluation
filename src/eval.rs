@@ -73,7 +73,7 @@ impl<T> Detail<T> {
         if self.value.is_none() {
             self.value = Some(default);
             self.variation_index = None;
-            // TODO reset reason?
+            // N.B. reason remains untouched: this is counterintuitive, but consistent with Go
         }
         self
     }

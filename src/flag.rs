@@ -99,7 +99,6 @@ impl Flag {
             }
         }
 
-        // just return the fallthrough for now
         self.fallthrough
             .get()
             .as_ref()
