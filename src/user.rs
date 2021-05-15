@@ -123,7 +123,7 @@ impl AttributeValue {
         match self {
             AttributeValue::Int(millis) => Some(Utc.timestamp_millis(*millis)),
             AttributeValue::Float(millis) => {
-                f64_to_i64_safe(millis.round()).map(|millis| Utc.timestamp_millis(millis))
+                f64_to_i64_safe(*millis).map(|millis| Utc.timestamp_millis(millis))
             }
             AttributeValue::String(s) => {
                 if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
