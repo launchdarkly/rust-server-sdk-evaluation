@@ -141,11 +141,7 @@ impl Op {
     }
 }
 
-fn string_op<F: Fn(&String, &String) -> bool>(
-    lhs: &AttributeValue,
-    rhs: &AttributeValue,
-    f: F,
-) -> bool {
+fn string_op<F: Fn(&str, &str) -> bool>(lhs: &AttributeValue, rhs: &AttributeValue, f: F) -> bool {
     match (lhs.as_str(), rhs.as_str()) {
         (Some(l), Some(r)) => f(l, r),
         _ => false,

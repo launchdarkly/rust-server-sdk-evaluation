@@ -79,7 +79,7 @@ where
 
 impl AttributeValue {
     /// as_str returns None unless self is a String. It will not convert.
-    pub fn as_str(&self) -> Option<&String> {
+    pub fn as_str(&self) -> Option<&str> {
         match self {
             AttributeValue::String(s) => Some(s),
             _ => None,
@@ -148,7 +148,7 @@ impl AttributeValue {
     /// as_semver will attempt to parse a string attribute into a semver version.
     /// It will return None if it cannot parse it, or for non-string attributes.
     pub fn as_semver(&self) -> Option<semver::Version> {
-        let version_str = self.as_str()?.as_str();
+        let version_str = self.as_str()?;
         semver::Version::parse(version_str)
             .ok()
             .or_else(|| AttributeValue::parse_semver_loose(version_str))
@@ -237,6 +237,42 @@ where
     Ok(opt.unwrap_or_default())
 }
 
+#[derive(Debug)]
+pub struct TypeError {
+    key: &'static str,
+    expected_type: &'static str,
+    actual_type: &'static str,
+}
+
+impl TypeError {
+    fn new(key: &'static str, expected_type: &'static str, actual_value: &AttributeValue) -> Self {
+        TypeError {
+            key,
+            expected_type,
+            actual_type: match actual_value {
+                AttributeValue::Array(_) => "Array",
+                AttributeValue::Bool(_) => "Bool",
+                AttributeValue::Int(_) => "Int",
+                AttributeValue::Float(_) => "Float",
+                AttributeValue::Null => "Null",
+                AttributeValue::String(_) => "String",
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for TypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Attribute {} must be {}, not {})",
+            self.key, self.expected_type, self.actual_type
+        )
+    }
+}
+
+impl std::error::Error for TypeError {}
+
 impl User {
     pub fn with_key(key: impl Into<String>) -> UserBuilder {
         UserBuilder::new(key)
@@ -289,9 +325,95 @@ impl User {
         }
     }
 
-    pub fn attribute<T: Into<AttributeValue>>(&mut self, key: &str, value: T) {
-        // TODO handle non-custom too
-        self.custom.insert(key.to_string(), value.into());
+    pub fn attribute<T: Into<AttributeValue>>(
+        &mut self,
+        key: &str,
+        value: T,
+    ) -> Result<(), TypeError> {
+        let value: AttributeValue = value.into();
+        match key {
+            "key" => {
+                self._key = value
+                    .as_str()
+                    .ok_or_else(|| TypeError::new("key", "String", &value))?
+                    .to_string()
+            }
+            "secondary" => {
+                self._secondary = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("secondary", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "ip" => {
+                self._ip = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("ip", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "country" => {
+                self._country = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("country", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "email" => {
+                self._email = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("email", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "firstName" => {
+                self._first_name = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("firstName", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "lastName" => {
+                self._last_name = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("lastName", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "avatar" => {
+                self._avatar = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("avatar", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "name" => {
+                self._name = Some(
+                    value
+                        .as_str()
+                        .ok_or_else(|| TypeError::new("name", "String", &value))?
+                        .to_string(),
+                )
+            }
+            "anonymous" => {
+                self._anonymous = Some(
+                    value
+                        .as_bool()
+                        .ok_or_else(|| TypeError::new("anonymous", "Bool", &value))?,
+                )
+            }
+            _ => {
+                let _ = self.custom.insert(key.to_string(), value);
+            }
+        }
+        Ok(())
     }
 
     pub fn bucket(&self, bucketing_key: &str, by_attr: Option<&str>, salt: &str) -> f32 {
@@ -506,5 +628,30 @@ mod tests {
             Some(10_i64).into_iter().collect::<AttributeValue>(),
             AttributeValue::Array(vec![AttributeValue::Int(10_i64)])
         );
+    }
+
+    #[test]
+    fn user_attribute() {
+        let mut user = User::with_key("abc").build();
+
+        for attribute in vec![
+            "key",
+            "secondary",
+            "ip",
+            "country",
+            "email",
+            "firstName",
+            "lastName",
+            "avatar",
+            "name",
+        ] {
+            user.attribute(attribute, "123").unwrap();
+            user.attribute(attribute, 123).unwrap_err();
+        }
+
+        user.attribute("anonymous", true).unwrap();
+        user.attribute("anonymous", 123).unwrap_err();
+        user.attribute("custom", "123").unwrap();
+        user.attribute("custom", 123).unwrap();
     }
 }
