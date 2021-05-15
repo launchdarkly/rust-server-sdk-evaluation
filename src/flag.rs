@@ -66,7 +66,7 @@ impl Flag {
             if let Some(flag) = store.flag(&prereq.key) {
                 if !flag.on || flag.evaluate(user, store).variation_index != Some(prereq.variation)
                 {
-                    // TODO capture prereq event
+                    // TODO(ch108583) capture prereq event
                     return self.off_value(Reason::PrerequisiteFailed {
                         prerequisite_key: prereq.key.to_string(),
                     });

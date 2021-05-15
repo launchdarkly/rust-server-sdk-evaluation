@@ -87,11 +87,12 @@ impl AttributeValue {
     /// to_f64 will return self if it is a float, otherwise convert it if possible, or else return
     /// None.
     pub fn to_f64(&self) -> Option<f64> {
+        // TODO(ch108588) ensure this is consistent with Go
         match self {
             AttributeValue::Float(f) => Some(*f),
             AttributeValue::Int(i) => Some(*i as f64),
             AttributeValue::String(s) => s.parse().ok(),
-            AttributeValue::Bool(_) => None, // TODO check this
+            AttributeValue::Bool(_) => None,
             AttributeValue::Null => None,
             other => {
                 warn!(
