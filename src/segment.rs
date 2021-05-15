@@ -26,13 +26,13 @@ pub struct Segment {
 #[derive(Clone, Debug, Deserialize)]
 struct SegmentRule {
     clauses: Vec<Clause>,
-    // TODO rollout
+    // TODO(ch108585) rollout
     // weight: Option<VariationWeight>
     // bucket_by: Option<String>,
 }
 
 impl Segment {
-    // TODO segment explanations
+    // TODO(ch108586) segment explanations
     pub fn contains(&self, user: &User) -> bool {
         let user_key = user.key().to_string();
 

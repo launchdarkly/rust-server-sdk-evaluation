@@ -134,7 +134,6 @@ impl Op {
                 false
             }
 
-            // TODO test semver ops
             Op::SemVerEqual => semver_op(lhs, rhs, |l, r| l == r),
             Op::SemVerLessThan => semver_op(lhs, rhs, |l, r| l < r),
             Op::SemVerGreaterThan => semver_op(lhs, rhs, |l, r| l > r),

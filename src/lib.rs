@@ -5,6 +5,7 @@ mod rule;
 mod segment;
 mod store;
 mod user;
+mod util;
 mod variation;
 
 pub use eval::*;

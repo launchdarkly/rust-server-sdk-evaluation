@@ -7,6 +7,8 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 use sha1::Sha1;
 
+use crate::util::f64_to_i64_safe;
+
 const USER_CUSTOM_STARTING_CAPACITY: usize = 10;
 const BUCKET_SCALE_INT: i64 = 0x0FFF_FFFF_FFFF_FFFF;
 const BUCKET_SCALE: f32 = BUCKET_SCALE_INT as f32;
@@ -87,11 +89,12 @@ impl AttributeValue {
     /// to_f64 will return self if it is a float, otherwise convert it if possible, or else return
     /// None.
     pub fn to_f64(&self) -> Option<f64> {
+        // TODO(ch108588) ensure this is consistent with Go
         match self {
             AttributeValue::Float(f) => Some(*f),
             AttributeValue::Int(i) => Some(*i as f64),
             AttributeValue::String(s) => s.parse().ok(),
-            AttributeValue::Bool(_) => None, // TODO check this
+            AttributeValue::Bool(_) => None,
             AttributeValue::Null => None,
             other => {
                 warn!(
@@ -120,8 +123,7 @@ impl AttributeValue {
         match self {
             AttributeValue::Int(millis) => Some(Utc.timestamp_millis(*millis)),
             AttributeValue::Float(millis) => {
-                // TODO this has undefined behaviour for huge floats: https://stackoverflow.com/a/41139453
-                Some(Utc.timestamp_nanos((millis * 1e6).round() as i64))
+                f64_to_i64_safe(*millis).map(|millis| Utc.timestamp_millis(millis))
             }
             AttributeValue::String(s) => {
                 if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
