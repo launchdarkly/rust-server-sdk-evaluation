@@ -1,6 +1,8 @@
 use log::warn;
 use serde::{Deserialize, Serialize};
 
+use crate::util::f64_to_i64_safe;
+
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FlagValue {
@@ -56,12 +58,6 @@ impl From<serde_json::Value> for FlagValue {
     }
 }
 
-// Converting float to int has undefined behaviour for huge floats: https://stackoverflow.com/a/41139453.
-// To avoid this, refuse to convert floats with magnitude greater than 2**53 - 1, after which 64-bit floats no longer
-// retain integer precision. We could go a few orders of magnitude higher without triggering the UB, but this seems like
-// the least surprising place to put a breakpoint.
-const FLOAT_TO_INT_MAX: f64 = 9007199254740991_f64;
-
 impl FlagValue {
     pub fn as_bool(&self) -> Option<bool> {
         match self {
@@ -96,7 +92,7 @@ impl FlagValue {
     pub fn as_int(&self) -> Option<i64> {
         match self {
             FlagValue::Int(i) => Some(*i),
-            FlagValue::Float(f) if f.abs() <= FLOAT_TO_INT_MAX => Some(*f as i64),
+            FlagValue::Float(f) => f64_to_i64_safe(*f),
             _ => None,
         }
     }
