@@ -90,60 +90,61 @@ impl<T> Detail<T> {
     }
 }
 
-// Reason describes the reason that a flag evaluation producted a particular value.
-// The Serialize implementation is used internally in cases where LaunchDarkly
-// needs to unmarshal a Reason value from JSON.
+/// Reason describes the reason that a flag evaluation producted a particular value.
+///
+/// The Serialize implementation is used internally in cases where LaunchDarkly
+/// needs to unmarshal a Reason value from JSON.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "kind")]
 pub enum Reason {
-    // Off indicates that the flag was off and therefore returned its configured off value.
+    /// Off indicates that the flag was off and therefore returned its configured off value.
     Off,
-    // TargetMatch indicates that the user key was specifically targeted for this flag.
+    /// TargetMatch indicates that the user key was specifically targeted for this flag.
     TargetMatch,
-    // RuleMatch indicates that the user matched one of the flag's rules.
+    /// RuleMatch indicates that the user matched one of the flag's rules.
     #[serde(rename_all = "camelCase")]
     RuleMatch {
         rule_index: usize,
         #[serde(skip_serializing_if = "String::is_empty")]
         rule_id: String,
     },
-    // PrerequisiteFailed indicates that the flag was considered off because it had at
-    // least one prerequisite flag that either was off or did not return the desired variation.
+    /// PrerequisiteFailed indicates that the flag was considered off because it had at
+    /// least one prerequisite flag that either was off or did not return the desired variation.
     #[serde(rename_all = "camelCase")]
-    PrerequisiteFailed {
-        prerequisite_key: String,
-    },
-    // Fallthrough indicates that the flag was on but the user did not match any targets
-    // or rules.
+    PrerequisiteFailed { prerequisite_key: String },
+    /// Fallthrough indicates that the flag was on but the user did not match any targets
+    /// or rules.
     Fallthrough,
-    // EvalReasonError indicates that the flag could not be evaluated, e.g. because it does not
-    // exist or due to an unexpected error. In this case the result value will be the default value
-    // that the caller passed to the client.
+    /// Error indicates that the flag could not be evaluated, e.g. because it does not
+    /// exist or due to an unexpected error. In this case the result value will be the default value
+    /// that the caller passed to the client.
     Error {
         #[serde(rename = "errorKind")]
         error: Error,
     },
 }
 
+/// Error is returned via a [`Reason::Error`] when the client could not evaluate a flag, and
+/// provides information about why the flag could not be evaluated.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Error {
-    // ClientNotReady indicates that the caller tried to evaluate a flag before the client
-    // had successfully initialized.
+    /// ClientNotReady indicates that the caller tried to evaluate a flag before the client
+    /// had successfully initialized.
     ClientNotReady,
-    // FlagNotFound indicates that the caller provided a flag key that did not match any
-    // known flag.
+    /// FlagNotFound indicates that the caller provided a flag key that did not match any
+    /// known flag.
     FlagNotFound,
-    // MalformedFlag indicates that there was an internal inconsistency in the flag data,
-    // e.g. a rule specified a nonexistent variation.
+    /// MalformedFlag indicates that there was an internal inconsistency in the flag data,
+    /// e.g. a rule specified a nonexistent variation.
     MalformedFlag,
-    // UserNotSpecified indicates that the caller passed a user without a key for the user
-    // parameter.
+    /// UserNotSpecified indicates that the caller passed a user without a key for the user
+    /// parameter.
     UserNotSpecified,
-    // WrongType indicates that the result value was not of the requested type, e.g. you
-    // called BoolVariationDetail but the value was an integer.
+    /// WrongType indicates that the result value was not of the requested type, e.g. you
+    /// called BoolVariationDetail but the value was an integer.
     WrongType,
-    // Exception indicates that an unexpected error stopped flag evaluation; check the
-    // log for details.
+    /// Exception indicates that an unexpected error stopped flag evaluation; check the
+    /// log for details.
     Exception,
 }
