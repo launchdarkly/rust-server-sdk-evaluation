@@ -162,6 +162,7 @@ mod tests {
     use crate::eval::Reason::*;
     use crate::flag_value::FlagValue::Bool;
     use crate::segment::Segment;
+    use crate::FlagValue::Str;
 
     struct TestStore {
         flags: HashMap<String, Flag>,
@@ -206,6 +207,67 @@ mod tests {
                         "trackEvents": true,
                         "trackEventsFallthrough": true,
                         "debugEventsUntilDate": 1500000000
+                    }"#).unwrap(),
+                    "flagWithRolloutBucket".to_string() => serde_json::from_str(r#"{
+                        "key": "flag",
+                        "on": true,
+                        "prerequisites": [],
+                        "targets": [],
+                        "rules": [
+                            {
+                                "rollout": {
+                                    "variations": [
+                                        {
+                                            "variation": 0,
+                                            "weight": 50000
+                                        },
+                                        {
+                                            "variation": 1,
+                                            "weight": 50000
+                                        },
+                                        {
+                                            "variation": 2,
+                                            "weight": 0
+                                        }
+                                    ],
+                                    "bucketBy": "ld_quid"
+                                },
+                                "id": "6a7755ac-e47a-40ea-9579-a09dd5f061bd",
+                                "clauses": [
+                                    {
+                                        "attribute": "platform",
+                                        "op": "in",
+                                        "values": [
+                                            "web",
+                                            "aem",
+                                            "ios"
+                                        ],
+                                        "negate": false
+                                    }
+                                ],
+                                "trackEvents": false
+                            }
+                        ],
+                        "fallthrough": {
+                            "variation": 2
+                        },
+                        "offVariation": 1,
+                        "variations": [
+                            "rollout1",
+                            "rollout2",
+                            "rollout3"
+                        ],
+                        "clientSideAvailability": {
+                            "usingMobileKey": true,
+                            "usingEnvironmentId": true
+                        },
+                        "clientSide": true,
+                        "salt": "ce2634f116d741a7ad1b7ef363f6f9bc",
+                        "trackEvents": false,
+                        "trackEventsFallthrough": false,
+                        "debugEventsUntilDate": null,
+                        "version": 7,
+                        "deleted": false
                     }"#).unwrap(),
                     "flagWithTarget".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithTarget",
@@ -574,5 +636,20 @@ mod tests {
             .that(&detail.value)
             .contains_value(&Bool(true));
         assert_that!(detail.reason).is_equal_to(Reason::Fallthrough);
+    }
+
+    #[test]
+    fn test_rollout_flag() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithRolloutBucket").unwrap();
+
+        let alice = User::with_key("anonymous").custom(hashmap! {
+                "platform".into() => "aem".into(),
+                "ld_quid".into() => "d4ad12cb-392b-4fce-b214-843ad625d6f8".into()
+            }).build();
+
+        let detail = flag.evaluate(&alice, &store);
+        // Flagbearer is returning rollout2
+        assert_that!(detail.value).contains_value(&Str("rollout1".to_string()));
     }
 }
