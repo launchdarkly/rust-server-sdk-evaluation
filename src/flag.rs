@@ -209,7 +209,7 @@ mod tests {
                         "debugEventsUntilDate": 1500000000
                     }"#).unwrap(),
                     "flagWithRolloutBucket".to_string() => serde_json::from_str(r#"{
-                        "key": "flag",
+                        "key": "rollout",
                         "on": true,
                         "prerequisites": [],
                         "targets": [],
