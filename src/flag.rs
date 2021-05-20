@@ -643,10 +643,12 @@ mod tests {
         let store = TestStore::new();
         let flag = store.flag("flagWithRolloutBucket").unwrap();
 
-        let alice = User::with_key("anonymous").custom(hashmap! {
+        let alice = User::with_key("anonymous")
+            .custom(hashmap! {
                 "platform".into() => "aem".into(),
                 "ld_quid".into() => "d4ad12cb-392b-4fce-b214-843ad625d6f8".into()
-            }).build();
+            })
+            .build();
 
         let detail = flag.evaluate(&alice, &store);
         // Flagbearer@Edge is returning rollout2

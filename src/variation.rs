@@ -13,8 +13,8 @@ pub enum VariationOrRollout {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Rollout {
-        bucket_by: Option<String>,
-        variations: Vec<WeightedVariation>,
+    bucket_by: Option<String>,
+    variations: Vec<WeightedVariation>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -36,10 +36,10 @@ impl VariationOrRollout {
     pub fn variation(&self, flag_key: &str, user: &User, salt: &str) -> Option<VariationIndex> {
         match self {
             VariationOrRollout::Variation(index) => Some(*index),
-            VariationOrRollout::Rollout ( Rollout {
-                                              bucket_by,
-                                              variations,
-                                          } ) => {
+            VariationOrRollout::Rollout(Rollout {
+                bucket_by,
+                variations,
+            }) => {
                 let bucket = user.bucket(flag_key, bucket_by.as_ref().map(String::as_str), salt);
                 let mut sum = 0.0;
                 for variation in variations {
@@ -76,8 +76,8 @@ mod tests {
     use crate::user::User;
 
     use super::{VariationOrRollout, VariationOrRolloutOrMalformed, WeightedVariation};
-    use spectral::prelude::*;
     use crate::Rollout;
+    use spectral::prelude::*;
 
     #[test]
     fn test_parse_variation_or_rollout() {
@@ -96,9 +96,10 @@ mod tests {
             }],
         }));
 
-        let rollout: VariationOrRolloutOrMalformed =
-            serde_json::from_str(r#"{"rollout":{"bucketBy":"bucket","variations":[{"variation":1,"weight":100000}]}}"#)
-                .expect("should parse");
+        let rollout: VariationOrRolloutOrMalformed = serde_json::from_str(
+            r#"{"rollout":{"bucketBy":"bucket","variations":[{"variation":1,"weight":100000}]}}"#,
+        )
+        .expect("should parse");
         assert_that!(rollout.get()).is_ok_containing(&VariationOrRollout::Rollout(Rollout {
             bucket_by: Some("bucket".to_string()),
             variations: vec![WeightedVariation {
