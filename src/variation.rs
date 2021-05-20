@@ -92,6 +92,17 @@ mod tests {
             }],
         });
 
+        let rollout: VariationOrRolloutOrMalformed =
+            serde_json::from_str(r#"{"rollout":{"bucketBy":"bucket","variations":[{"variation":1,"weight":100000}]}}"#)
+                .expect("should parse");
+        assert_that!(rollout.get()).is_ok_containing(&VariationOrRollout::Rollout {
+            bucket_by: Some("bucket".to_string()),
+            variations: vec![WeightedVariation {
+                variation: 1,
+                weight: 100000.0,
+            }],
+        });
+
         let malformed: VariationOrRolloutOrMalformed =
             serde_json::from_str("{}").expect("should parse");
         assert_that!(malformed.get()).is_err();
