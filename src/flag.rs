@@ -651,7 +651,6 @@ mod tests {
             .build();
 
         let detail = flag.evaluate(&alice, &store);
-        // Flagbearer@Edge is returning rollout2
         assert_that!(detail.value).contains_value(&Str("rollout1".to_string()));
     }
 }
