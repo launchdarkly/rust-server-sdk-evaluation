@@ -12,7 +12,7 @@ pub enum VariationOrRollout {
 }
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct Rollout {
+pub struct Rollout {
     bucket_by: Option<String>,
     variations: Vec<WeightedVariation>,
 }
