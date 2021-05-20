@@ -160,9 +160,8 @@ mod tests {
     use spectral::prelude::*;
 
     use crate::eval::Reason::*;
-    use crate::flag_value::FlagValue::Bool;
+    use crate::flag_value::FlagValue::{Bool, Str};
     use crate::segment::Segment;
-    use crate::FlagValue::Str;
 
     struct TestStore {
         flags: HashMap<String, Flag>,

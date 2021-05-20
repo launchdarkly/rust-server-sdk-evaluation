@@ -12,7 +12,7 @@ pub enum VariationOrRollout {
 }
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Rollout {
+struct Rollout {
     bucket_by: Option<String>,
     variations: Vec<WeightedVariation>,
 }
@@ -75,8 +75,7 @@ impl From<VariationOrRollout> for VariationOrRolloutOrMalformed {
 mod tests {
     use crate::user::User;
 
-    use super::{VariationOrRollout, VariationOrRolloutOrMalformed, WeightedVariation};
-    use crate::Rollout;
+    use super::{Rollout, VariationOrRollout, VariationOrRolloutOrMalformed, WeightedVariation};
     use spectral::prelude::*;
 
     #[test]
