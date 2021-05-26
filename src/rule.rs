@@ -331,20 +331,9 @@ mod tests {
         assert!(Op::GreaterThanOrEqual.matches(&afloat(0.0), &afloat(0.0)));
         assert!(!Op::GreaterThanOrEqual.matches(&afloat(0.0), &afloat(1.0)));
 
-        // conversions
-        assert!(
-            Op::LessThan.matches(&astring("0"), &afloat(1.0)),
-            "should convert numeric string on LHS"
-        );
-        assert!(
-            Op::LessThan.matches(&afloat(0.0), &astring("1")),
-            "should convert numeric string on RHS"
-        );
-
-        assert!(
-            !Op::LessThan.matches(&astring("Tuesday"), &afloat(7.0)),
-            "non-numeric strings don't match"
-        );
+        // no conversions
+        assert!(!Op::LessThan.matches(&astring("0"), &afloat(1.0)));
+        assert!(!Op::LessThan.matches(&afloat(0.0), &astring("1")));
     }
 
     #[test]
@@ -677,5 +666,174 @@ mod tests {
                 attr
             );
         }
+    }
+
+    // The following test cases are ported from the Go implementation:
+    // https://github.com/launchdarkly/go-server-sdk-evaluation/blob/v1/ldmodel/match_clause_operator_test.go#L28-L155
+    fn clause_test_case<S, T>(op: Op, user_value: S, clause_value: T, expected: bool)
+    where
+        AttributeValue: From<S>,
+        AttributeValue: From<T>,
+    {
+        let clause = Clause {
+            attribute: "attr".to_string(),
+            negate: false,
+            op: op,
+            values: match clause_value.into() {
+                AttributeValue::Array(vec) => vec,
+                other => vec![other],
+            },
+        };
+
+        let user = User::with_key("key")
+            .custom(hashmap!["attr".to_string() => user_value.into()])
+            .build();
+        assert_eq!(
+            clause.matches(&user, &TestStore {}),
+            expected,
+            "{:?} {:?} {:?} should be {}",
+            user.value_of("attr").unwrap(),
+            clause.op,
+            clause.values,
+            &expected
+        );
+    }
+
+    #[test]
+    fn test_numeric_clauses() {
+        clause_test_case(Op::In, 99, 99, true);
+        clause_test_case(Op::In, 99, vec![99, 98, 97, 96], true);
+        clause_test_case(Op::In, 99.0001, 99.0001, true);
+        clause_test_case(Op::In, 99.0001, vec![99.0001, 98.0, 97.0, 96.0], true);
+        clause_test_case(Op::LessThan, 1, 1.99999, true);
+        clause_test_case(Op::LessThan, 1.99999, 1, false);
+        clause_test_case(Op::LessThan, 1, 2, true);
+        clause_test_case(Op::LessThanOrEqual, 1, 1.0, true);
+        clause_test_case(Op::GreaterThan, 2, 1.99999, true);
+        clause_test_case(Op::GreaterThan, 1.99999, 2, false);
+        clause_test_case(Op::GreaterThan, 2, 1, true);
+        clause_test_case(Op::GreaterThanOrEqual, 1, 1.0, true);
+    }
+
+    #[test]
+    fn test_string_clauses() {
+        clause_test_case(Op::In, "x", "x", true);
+        clause_test_case(Op::In, "x", vec!["x", "a", "b", "c"], true);
+        clause_test_case(Op::In, "x", "xyz", false);
+        clause_test_case(Op::StartsWith, "xyz", "x", true);
+        clause_test_case(Op::StartsWith, "x", "xyz", false);
+        clause_test_case(Op::EndsWith, "xyz", "z", true);
+        clause_test_case(Op::EndsWith, "z", "xyz", false);
+        clause_test_case(Op::Contains, "xyz", "y", true);
+        clause_test_case(Op::Contains, "y", "xyz", false);
+    }
+
+    #[test]
+    fn test_mixed_string_and_numbers() {
+        clause_test_case(Op::In, "99", 99, false);
+        clause_test_case(Op::In, 99, "99", false);
+        clause_test_case(Op::Contains, "99", 99, false);
+        clause_test_case(Op::StartsWith, "99", 99, false);
+        clause_test_case(Op::EndsWith, "99", 99, false);
+        clause_test_case(Op::LessThanOrEqual, "99", 99, false);
+        clause_test_case(Op::LessThanOrEqual, 99, "99", false);
+        clause_test_case(Op::GreaterThanOrEqual, "99", 99, false);
+        clause_test_case(Op::GreaterThanOrEqual, 99, "99", false);
+    }
+
+    #[test]
+    fn test_boolean_equality() {
+        clause_test_case(Op::In, true, true, true);
+        clause_test_case(Op::In, false, false, true);
+        clause_test_case(Op::In, true, false, false);
+        clause_test_case(Op::In, false, true, false);
+        clause_test_case(Op::In, true, vec![false, true], true);
+    }
+
+    #[test]
+    fn test_array_equality() {
+        // note that the user value must be an array *of arrays*, because a single-level
+        // array is interpreted as "any of these values"
+        clause_test_case(Op::In, vec![vec!["x"]], vec![vec!["x"]], true);
+        clause_test_case(Op::In, vec![vec!["x"]], vec!["x"], false);
+        clause_test_case(
+            Op::In,
+            vec![vec!["x"]],
+            vec![vec!["x"], vec!["a"], vec!["b"]],
+            true,
+        );
+    }
+
+    // TODO uncomment after object attributes are implemented
+    // #[test]
+    // fn test_object_equality() {
+    //     clause_test_case(Op::In, hashmap!{"x" => "1"}, hashmap!{"x" => "1"}, true);
+    //     clause_test_case(
+    //         Op::In,
+    //         hashmap!{"x" => "1"},
+    //         vec![
+    //             hashmap!{"x" => "1"},
+    //             hashmap!{"a" => "2"},
+    //             hashmap!{"b" => "3"}
+    //         ],
+    //         true
+    //     );
+    // }
+
+    #[test]
+    fn test_regex_match() {
+        clause_test_case(Op::Matches, "hello world", "hello.*rld", true);
+        clause_test_case(Op::Matches, "hello world", "hello.*orl", true);
+        clause_test_case(Op::Matches, "hello world", "l+", true);
+        clause_test_case(Op::Matches, "hello world", "(world|planet)", true);
+        clause_test_case(Op::Matches, "hello world", "aloha", false);
+        clause_test_case(Op::Matches, "hello world", "***bad regex", false);
+    }
+
+    #[test]
+    fn test_date_clauses() {
+        const DATE_STR1: &str = "2017-12-06T00:00:00.000-07:00";
+        const DATE_STR2: &str = "2017-12-06T00:01:01.000-07:00";
+        const DATE_MS1: i64 = 10000000;
+        const DATE_MS2: i64 = 10000001;
+        const INVALID_DATE: &str = "hey what's this?";
+
+        clause_test_case(Op::Before, DATE_STR1, DATE_STR2, true);
+        clause_test_case(Op::Before, DATE_MS1, DATE_MS2, true);
+        clause_test_case(Op::Before, DATE_STR2, DATE_STR1, false);
+        clause_test_case(Op::Before, DATE_MS2, DATE_MS1, false);
+        clause_test_case(Op::Before, DATE_STR1, DATE_STR1, false);
+        clause_test_case(Op::Before, DATE_MS1, DATE_MS1, false);
+        clause_test_case(Op::Before, AttributeValue::Null, DATE_STR1, false);
+        clause_test_case(Op::Before, DATE_STR1, INVALID_DATE, false);
+        clause_test_case(Op::After, DATE_STR2, DATE_STR1, true);
+        clause_test_case(Op::After, DATE_MS2, DATE_MS1, true);
+        clause_test_case(Op::After, DATE_STR1, DATE_STR2, false);
+        clause_test_case(Op::After, DATE_MS1, DATE_MS2, false);
+        clause_test_case(Op::After, DATE_STR1, DATE_STR1, false);
+        clause_test_case(Op::After, DATE_MS1, DATE_MS1, false);
+        clause_test_case(Op::After, AttributeValue::Null, DATE_STR1, false);
+        clause_test_case(Op::After, DATE_STR1, INVALID_DATE, false);
+    }
+
+    #[test]
+    fn test_semver_clauses() {
+        clause_test_case(Op::SemVerEqual, "2.0.0", "2.0.0", true);
+        clause_test_case(Op::SemVerEqual, "2.0", "2.0.0", true);
+        clause_test_case(Op::SemVerEqual, "2-rc1", "2.0.0-rc1", true);
+        clause_test_case(Op::SemVerEqual, "2+build2", "2.0.0+build2", true);
+        clause_test_case(Op::SemVerEqual, "2.0.0", "2.0.1", false);
+        clause_test_case(Op::SemVerLessThan, "2.0.0", "2.0.1", true);
+        clause_test_case(Op::SemVerLessThan, "2.0", "2.0.1", true);
+        clause_test_case(Op::SemVerLessThan, "2.0.1", "2.0.0", false);
+        clause_test_case(Op::SemVerLessThan, "2.0.1", "2.0", false);
+        clause_test_case(Op::SemVerLessThan, "2.0.1", "xbad%ver", false);
+        clause_test_case(Op::SemVerLessThan, "2.0.0-rc", "2.0.0-rc.beta", true);
+        clause_test_case(Op::SemVerGreaterThan, "2.0.1", "2.0", true);
+        clause_test_case(Op::SemVerGreaterThan, "10.0.1", "2.0", true);
+        clause_test_case(Op::SemVerGreaterThan, "2.0.0", "2.0.1", false);
+        clause_test_case(Op::SemVerGreaterThan, "2.0", "2.0.1", false);
+        clause_test_case(Op::SemVerGreaterThan, "2.0.1", "xbad%ver", false);
+        clause_test_case(Op::SemVerGreaterThan, "2.0.0-rc.1", "2.0.0-rc.0", true);
     }
 }
