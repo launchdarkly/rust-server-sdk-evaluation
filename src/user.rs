@@ -26,6 +26,7 @@ pub enum AttributeValue {
     Int(i64),
     Float(f64),
     Bool(bool),
+    Object(HashMap<String, AttributeValue>),
     Null,
 }
 
@@ -64,7 +65,17 @@ where
     AttributeValue: From<T>,
 {
     fn from(v: Vec<T>) -> AttributeValue {
-        AttributeValue::Array(v.into_iter().map(|i| i.into()).collect())
+        v.into_iter().collect()
+    }
+}
+
+impl<S, T> From<HashMap<S, T>> for AttributeValue
+where
+    String: From<S>,
+    AttributeValue: From<T>,
+{
+    fn from(hashmap: HashMap<S, T>) -> AttributeValue {
+        hashmap.into_iter().collect()
     }
 }
 
@@ -74,6 +85,20 @@ where
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         AttributeValue::Array(iter.into_iter().map(AttributeValue::from).collect())
+    }
+}
+
+impl<S, T> std::iter::FromIterator<(S, T)> for AttributeValue
+where
+    String: From<S>,
+    AttributeValue: From<T>,
+{
+    fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
+        AttributeValue::Object(
+            iter.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -169,7 +194,8 @@ impl AttributeValue {
             AttributeValue::String(_)
             | AttributeValue::Int(_)
             | AttributeValue::Float(_)
-            | AttributeValue::Bool(_) => {
+            | AttributeValue::Bool(_)
+            | AttributeValue::Object(_) => {
                 if p(self) {
                     Some(&self)
                 } else {
@@ -244,6 +270,7 @@ impl TypeError {
                 AttributeValue::Int(_) => "Int",
                 AttributeValue::Float(_) => "Float",
                 AttributeValue::Null => "Null",
+                AttributeValue::Object(_) => "Object",
                 AttributeValue::String(_) => "String",
             },
         }
@@ -616,6 +643,16 @@ mod tests {
         assert_eq!(
             Some(10_i64).into_iter().collect::<AttributeValue>(),
             AttributeValue::Array(vec![AttributeValue::Int(10_i64)])
+        );
+    }
+
+    #[test]
+    fn collect_object() {
+        assert_eq!(
+            Some(("abc", 10_i64))
+                .into_iter()
+                .collect::<AttributeValue>(),
+            AttributeValue::Object(hashmap! {"abc".to_string() => AttributeValue::Int(10_i64)})
         );
     }
 

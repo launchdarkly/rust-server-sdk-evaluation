@@ -225,6 +225,26 @@ mod tests {
         assert!(Op::In.matches(&afloat(42.0), &afloat(42.0)));
         assert!(!Op::In.matches(&afloat(42.0), &afloat(3.0)));
         assert!(Op::In.matches(&afloat(0.0), &afloat(-0.0)));
+
+        // arrays
+        assert!(Op::In.matches(&vec![0.0].into(), &vec![0.0].into()));
+        assert!(!Op::In.matches(&vec![0.0, 1.0].into(), &vec![0.0].into()));
+        assert!(!Op::In.matches(&vec![0.0].into(), &vec![0.0, 1.0].into()));
+        assert!(!Op::In.matches(&afloat(0.0), &vec![0.0].into()));
+        assert!(!Op::In.matches(&vec![0.0].into(), &afloat(0.0)));
+
+        // objects
+        assert!(Op::In.matches(&hashmap! {"x" => 0.0}.into(), &hashmap! {"x" => 0.0}.into()));
+        assert!(!Op::In.matches(
+            &hashmap! {"x" => 0.0, "y" => 1.0}.into(),
+            &hashmap! {"x" => 0.0}.into()
+        ));
+        assert!(!Op::In.matches(
+            &hashmap! {"x" => 0.0}.into(),
+            &hashmap! {"x" => 0.0, "y" => 1.0}.into()
+        ));
+        assert!(!Op::In.matches(&afloat(0.0), &hashmap! {"x" => 0.0}.into()));
+        assert!(!Op::In.matches(&hashmap! {"x" => 0.0}.into(), &afloat(0.0)));
     }
 
     #[test]
@@ -825,21 +845,20 @@ mod tests {
         );
     }
 
-    // TODO uncomment after object attributes are implemented
-    // #[test]
-    // fn test_object_equality() {
-    //     clause_test_case(Op::In, hashmap!{"x" => "1"}, hashmap!{"x" => "1"}, true);
-    //     clause_test_case(
-    //         Op::In,
-    //         hashmap!{"x" => "1"},
-    //         vec![
-    //             hashmap!{"x" => "1"},
-    //             hashmap!{"a" => "2"},
-    //             hashmap!{"b" => "3"}
-    //         ],
-    //         true
-    //     );
-    // }
+    #[test]
+    fn test_object_equality() {
+        clause_test_case(Op::In, hashmap! {"x" => "1"}, hashmap! {"x" => "1"}, true);
+        clause_test_case(
+            Op::In,
+            hashmap! {"x" => "1"},
+            vec![
+                hashmap! {"x" => "1"},
+                hashmap! {"a" => "2"},
+                hashmap! {"b" => "3"},
+            ],
+            true,
+        );
+    }
 
     #[test]
     fn test_regex_match() {
