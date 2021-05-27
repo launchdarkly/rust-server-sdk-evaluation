@@ -25,7 +25,7 @@ pub struct FlagRule {
     pub track_events: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 enum Op {
     In,
@@ -75,8 +75,9 @@ impl Clause {
 
     pub(crate) fn matches_non_segment(&self, user: &User) -> bool {
         let user_val = match user.value_of(&self.attribute) {
+            // null attributes always imply false, regardless of clause negation
+            Some(AttributeValue::Null) | None => return false,
             Some(v) => v,
-            None => return false,
         };
 
         let any_match = user_val.find(|user_val_v| {
@@ -665,6 +666,66 @@ mod tests {
                 "should not match user with null {}",
                 attr
             );
+        }
+    }
+
+    #[test]
+    fn test_null_attribute() {
+        let user_null_attr = User::with_key("key")
+            .custom(hashmap!["attr".to_string() => AttributeValue::Null])
+            .build();
+
+        let user_missing_attr = User::with_key("key").build();
+
+        let clause_values = vec![
+            AttributeValue::Bool(true),
+            AttributeValue::Bool(false),
+            AttributeValue::Float(1.5),
+            AttributeValue::Int(1),
+            AttributeValue::Null,
+            AttributeValue::String("abc".to_string()),
+            AttributeValue::Array(vec![
+                AttributeValue::String("def".to_string()),
+                AttributeValue::Null,
+            ]),
+        ];
+
+        for op in &[
+            Op::In,
+            Op::StartsWith,
+            Op::EndsWith,
+            Op::Contains,
+            Op::Matches,
+            Op::LessThan,
+            Op::LessThanOrEqual,
+            Op::GreaterThan,
+            Op::GreaterThanOrEqual,
+            Op::Before,
+            Op::After,
+            Op::SemVerEqual,
+            Op::SemVerGreaterThan,
+            Op::SemVerLessThan,
+        ] {
+            for neg in &[true, false] {
+                let clause = Clause {
+                    attribute: "attr".to_string(),
+                    negate: *neg,
+                    op: *op,
+                    values: clause_values.clone(),
+                };
+                assert!(
+                    !clause.matches(&user_null_attr, &TestStore {}),
+                    "Null attribute matches operator {:?} when {}negated",
+                    clause.op,
+                    if *neg { "" } else { "not " },
+                );
+                assert!(
+                    !clause.matches(&user_missing_attr, &TestStore {}),
+                    "Missing attribute matches operator {:?} when {}negated",
+                    clause.op,
+                    if *neg { "" } else { "not " },
+                );
+            }
         }
     }
 
