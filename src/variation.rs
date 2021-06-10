@@ -48,7 +48,7 @@ impl VariationOrRollout {
                         return Some(variation.variation);
                     }
                 }
-                None
+                variations.last().map(|var| var.variation)
             }
         }
     }
@@ -117,27 +117,54 @@ mod tests {
         const HASH_KEY: &str = "hashKey";
         const SALT: &str = "saltyA";
 
-        let wv1 = WeightedVariation {
+        let wv0 = WeightedVariation {
             variation: 0,
             weight: 60_000.0,
         };
-        let wv2 = WeightedVariation {
+        let wv1 = WeightedVariation {
             variation: 1,
             weight: 40_000.0,
         };
         let rollout = VariationOrRollout::Rollout(Rollout {
             bucket_by: None,
-            variations: vec![wv1, wv2],
+            variations: vec![wv0, wv1],
         });
 
-        asserting!("userKeyA should get variation 0")
+        asserting!("userKeyA (bucket 0.42157587) should get variation 0")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyA").build(), SALT))
             .contains_value(0);
-        asserting!("userKeyB should get variation 1")
+        asserting!("userKeyB (bucket 0.6708485) should get variation 1")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyB").build(), SALT))
             .contains_value(1);
-        asserting!("userKeyC should get variation 0")
+        asserting!("userKeyC (bucket 0.10343106) should get variation 0")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyC").build(), SALT))
             .contains_value(0);
+    }
+
+    #[test]
+    fn incomplete_weighting_defaults_to_last_variation() {
+        const HASH_KEY: &str = "hashKey";
+        const SALT: &str = "saltyA";
+
+        let wv0 = WeightedVariation {
+            variation: 0,
+            weight: 1.0,
+        };
+        let wv1 = WeightedVariation {
+            variation: 1,
+            weight: 2.0,
+        };
+        let wv2 = WeightedVariation {
+            variation: 2,
+            weight: 3.0,
+        };
+        let rollout = VariationOrRollout::Rollout(Rollout {
+            bucket_by: None,
+            variations: vec![wv0, wv1, wv2],
+        });
+
+        asserting!("userKeyD (bucket 0.7816281) should get variation 2")
+            .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyD").build(), SALT))
+            .contains_value(2);
     }
 }
