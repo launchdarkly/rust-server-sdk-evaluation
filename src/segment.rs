@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use crate::rule::Clause;
 use crate::user::User;
+use crate::variation::VariationWeight;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,9 +27,8 @@ pub struct Segment {
 #[derive(Clone, Debug, Deserialize)]
 struct SegmentRule {
     clauses: Vec<Clause>,
-    // TODO(ch108585) rollout
-    // weight: Option<VariationWeight>
-    // bucket_by: Option<String>,
+    weight: Option<VariationWeight>,
+    bucket_by: Option<String>,
 }
 
 impl Segment {
@@ -44,7 +44,7 @@ impl Segment {
         }
 
         for rule in &self.rules {
-            if rule.matches(user) {
+            if rule.matches(user, &self.key, &self.salt) {
                 return true;
             }
         }
@@ -61,13 +61,198 @@ impl Segment {
 }
 
 impl SegmentRule {
-    pub fn matches(&self, user: &User) -> bool {
+    pub fn matches(&self, user: &User, key: &str, salt: &str) -> bool {
         // rules match if _all_ of their clauses do
         for clause in &self.clauses {
             if !clause.matches_non_segment(user) {
                 return false;
             }
         }
-        true
+
+        match self.weight {
+            Some(weight) if weight >= 0.0 => {
+                let bucket_by = self.bucket_by.as_deref();
+                let bucket = user.bucket(key, bucket_by, salt);
+                bucket < weight / 100_000.0
+            }
+            _ => true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::flag::Flag;
+    use crate::flag_value::FlagValue;
+    use crate::store::Store;
+    use crate::user::AttributeValue;
+
+    // Treat a Segment as a Store containing only itself
+    type TestStore = Segment;
+    impl Store for TestStore {
+        fn flag(&self, _flag_key: &str) -> Option<&Flag> {
+            None
+        }
+        fn segment(&self, segment_key: &str) -> Option<&Segment> {
+            if self.key == segment_key {
+                Some(self as &Segment)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn assert_segment_match(segment: &Segment, user: User, expected: bool) {
+        let flag = Flag::new_boolean_flag_with_segment_match(vec![&segment.key]);
+        let store = segment as &TestStore;
+        let result = flag.evaluate(&user, store);
+        assert_eq!(result.value, Some(&FlagValue::Bool(expected)));
+    }
+
+    fn new_segment() -> Segment {
+        Segment {
+            key: "segkey".to_string(),
+            included: vec![],
+            excluded: vec![],
+            rules: vec![],
+            salt: "salty".to_string(),
+            unbounded: false,
+            generation: Some(1),
+            version: 1,
+            deleted: false,
+        }
+    }
+
+    fn jane_rule(weight: Option<f32>, bucket_by: Option<String>) -> SegmentRule {
+        SegmentRule {
+            clauses: vec![Clause::new_match(
+                "name",
+                AttributeValue::String("Jane".to_string()),
+            )],
+            weight,
+            bucket_by,
+        }
+    }
+
+    fn thirty_percent_rule(bucket_by: Option<String>) -> SegmentRule {
+        SegmentRule {
+            clauses: vec![Clause::new_match(
+                "key",
+                AttributeValue::String(".".to_string()),
+            )],
+            weight: Some(30_000.0),
+            bucket_by,
+        }
+    }
+
+    #[test]
+    fn segment_match_clause_falls_through_if_segment_not_found() {
+        let mut segment = new_segment();
+        segment.included.push("foo".to_string());
+        segment.key = "different-key".to_string();
+        let user = User::with_key("foo").build();
+        assert_segment_match(&segment, user, true);
+    }
+
+    #[test]
+    fn can_match_just_one_segment_from_list() {
+        let mut segment = new_segment();
+        segment.included.push("foo".to_string());
+        let user = User::with_key("foo").build();
+        let flag = Flag::new_boolean_flag_with_segment_match(vec![
+            "different-segkey",
+            "segkey",
+            "another-segkey",
+        ]);
+        let result = flag.evaluate(&user, &segment);
+        assert_eq!(result.value, Some(&FlagValue::Bool(true)));
+    }
+
+    #[test]
+    fn user_is_explicitly_included_in_segment() {
+        let mut segment = new_segment();
+        segment.included.push("foo".to_string());
+        segment.included.push("bar".to_string());
+        let user = User::with_key("bar").build();
+        assert_segment_match(&segment, user, true);
+    }
+
+    #[test]
+    fn user_is_matched_by_segment_rule() {
+        let mut segment = new_segment();
+        segment.rules.push(jane_rule(None, None));
+        let jane = User::with_key("foo").name("Jane").build();
+        let joan = User::with_key("foo").name("Joan").build();
+        assert_segment_match(&segment, jane, true);
+        assert_segment_match(&segment, joan, false);
+    }
+
+    #[test]
+    fn user_is_explicitly_excluded_from_segment() {
+        let mut segment = new_segment();
+        segment.rules.push(jane_rule(None, None));
+        segment.excluded.push("foo".to_string());
+        segment.excluded.push("bar".to_string());
+        let jane = User::with_key("foo").name("Jane").build();
+        assert_segment_match(&segment, jane, false);
+    }
+
+    #[test]
+    fn segment_includes_override_excludes() {
+        let mut segment = new_segment();
+        segment.included.push("bar".to_string());
+        segment.excluded.push("foo".to_string());
+        segment.excluded.push("bar".to_string());
+        let user = User::with_key("bar").build();
+        assert_segment_match(&segment, user, true);
+    }
+
+    #[test]
+    fn segment_does_not_match_if_no_includes_or_rules_match() {
+        let mut segment = new_segment();
+        segment.rules.push(jane_rule(None, None));
+        segment.included.push("key".to_string());
+        let user = User::with_key("other-key").name("Bob").build();
+        assert_segment_match(&segment, user, false);
+    }
+
+    #[test]
+    fn segment_rule_can_match_user_with_percentage_rollout() {
+        let mut segment = new_segment();
+        segment.rules.push(jane_rule(Some(99_999.0), None));
+        let user = User::with_key("key").name("Jane").build();
+        assert_segment_match(&segment, user, true);
+    }
+
+    #[test]
+    fn segment_rule_can_not_match_user_with_percentage_rollout() {
+        let mut segment = new_segment();
+        segment.rules.push(jane_rule(Some(1.0), None));
+        let user = User::with_key("key").name("Jane").build();
+        assert_segment_match(&segment, user, false);
+    }
+
+    #[test]
+    fn segment_rule_can_have_percentage_rollout() {
+        let mut segment = new_segment();
+        segment.rules.push(thirty_percent_rule(None));
+
+        let user_a = User::with_key("userKeyA").build(); // bucket 0.14574753
+        let user_z = User::with_key("userKeyZ").build(); // bucket 0.45679215
+        assert_segment_match(&segment, user_a, true);
+        assert_segment_match(&segment, user_z, false);
+    }
+
+    #[test]
+    fn segment_rule_can_have_percentage_rollout_by_any_attribute() {
+        let mut segment = new_segment();
+        segment
+            .rules
+            .push(thirty_percent_rule(Some("name".to_string())));
+        let user_a = User::with_key("x").name("userKeyA").build(); // bucket 0.14574753
+        let user_z = User::with_key("x").name("userKeyZ").build(); // bucket 0.45679215
+        assert_segment_match(&segment, user_a, true);
+        assert_segment_match(&segment, user_z, false);
     }
 }

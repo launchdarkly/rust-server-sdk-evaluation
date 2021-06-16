@@ -90,6 +90,16 @@ impl Clause {
 
         self.maybe_negate(any_match.is_some())
     }
+
+    #[cfg(test)]
+    pub fn new_match(attribute: &str, value: AttributeValue) -> Self {
+        Self {
+            attribute: attribute.to_string(),
+            negate: false,
+            op: Op::Matches,
+            values: vec![value],
+        }
+    }
 }
 
 impl FlagRule {
@@ -101,6 +111,24 @@ impl FlagRule {
             }
         }
         true
+    }
+
+    #[cfg(test)]
+    pub fn new_segment_match(segment_keys: Vec<&str>) -> Self {
+        Self {
+            id: "rule".to_string(),
+            clauses: vec![Clause {
+                attribute: "".to_string(),
+                negate: false,
+                op: Op::SegmentMatch,
+                values: segment_keys
+                    .iter()
+                    .map(|key| AttributeValue::String(key.to_string()))
+                    .collect(),
+            }],
+            variation_or_rollout: VariationOrRollout::Variation(1),
+            track_events: false,
+        }
     }
 }
 

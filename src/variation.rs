@@ -24,7 +24,7 @@ pub(crate) enum VariationOrRolloutOrMalformed {
     Malformed(serde_json::Value),
 }
 
-type VariationWeight = f32;
+pub(crate) type VariationWeight = f32;
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct WeightedVariation {

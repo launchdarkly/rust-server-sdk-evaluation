@@ -149,6 +149,32 @@ impl Flag {
             _ => false,
         }
     }
+
+    #[cfg(test)]
+    pub fn new_boolean_flag_with_segment_match(segment_keys: Vec<&str>) -> Self {
+        Self {
+            key: "feature".to_string(),
+            version: 1,
+            deleted: false,
+            on: true,
+            targets: vec![],
+            rules: vec![crate::rule::FlagRule::new_segment_match(segment_keys)],
+            prerequisites: vec![],
+            fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
+                VariationOrRollout::Variation(0),
+            ),
+            off_variation: Some(0),
+            variations: vec![FlagValue::Bool(false), FlagValue::Bool(true)],
+            client_side_availability: ClientSideAvailability {
+                using_mobile_key: false,
+                using_environment_id: false,
+            },
+            salt: "xyz".to_string(),
+            track_events: false,
+            track_events_fallthrough: false,
+            debug_events_until_date: None,
+        }
+    }
 }
 
 #[cfg(test)]
