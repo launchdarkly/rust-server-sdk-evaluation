@@ -8,8 +8,7 @@ use crate::util::f64_to_i64_safe;
 pub enum FlagValue {
     Bool(bool),
     Str(String),
-    Float(f64),
-    Int(i64),
+    Number(f64),
     Json(serde_json::Value),
 }
 
@@ -27,13 +26,13 @@ impl From<String> for FlagValue {
 
 impl From<f64> for FlagValue {
     fn from(f: f64) -> FlagValue {
-        FlagValue::Float(f)
+        FlagValue::Number(f)
     }
 }
 
 impl From<i64> for FlagValue {
     fn from(i: i64) -> FlagValue {
-        FlagValue::Int(i)
+        FlagValue::Number(i as f64)
     }
 }
 
@@ -45,8 +44,6 @@ impl From<serde_json::Value> for FlagValue {
             Value::Number(n) => {
                 if let Some(f) = n.as_f64() {
                     f.into()
-                } else if let Some(i) = n.as_i64() {
-                    i.into()
                 } else {
                     warn!("unrepresentable number {}, converting to string", n);
                     FlagValue::Json(format!("{}", n).into())
@@ -81,9 +78,9 @@ impl FlagValue {
 
     pub fn as_float(&self) -> Option<f64> {
         match self {
-            FlagValue::Float(f) => Some(*f),
+            FlagValue::Number(f) => Some(*f),
             _ => {
-                warn!("variation type is not float but {:?}", self);
+                warn!("variation type is not number but {:?}", self);
                 None
             }
         }
@@ -91,9 +88,11 @@ impl FlagValue {
 
     pub fn as_int(&self) -> Option<i64> {
         match self {
-            FlagValue::Int(i) => Some(*i),
-            FlagValue::Float(f) => f64_to_i64_safe(*f),
-            _ => None,
+            FlagValue::Number(f) => f64_to_i64_safe(*f),
+            _ => {
+                warn!("variation type is not number but {:?}", self);
+                None
+            }
         }
     }
 
@@ -102,8 +101,7 @@ impl FlagValue {
         match self {
             FlagValue::Bool(b) => Some(Value::from(*b)),
             FlagValue::Str(s) => Some(Value::from(s.as_str())),
-            FlagValue::Float(f) => Some(Value::from(*f)),
-            FlagValue::Int(i) => Some(Value::from(*i)),
+            FlagValue::Number(f) => Some(Value::from(*f)),
             FlagValue::Json(v) => Some(v.clone()),
         }
     }
@@ -112,6 +110,7 @@ impl FlagValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use spectral::prelude::*;
 
     #[test]
@@ -127,7 +126,20 @@ mod tests {
             (-9007199254740992.0, None),
         ];
         for (have, expect) in test_cases {
-            assert_that!(FlagValue::Float(have).as_int()).is_equal_to(expect);
+            assert_that!(FlagValue::Number(have).as_int()).is_equal_to(expect);
         }
+    }
+
+    #[test]
+    fn deserialization() {
+        fn test_case(json: &str, expected: FlagValue) {
+            assert_eq!(serde_json::from_str::<FlagValue>(json).unwrap(), expected);
+        }
+
+        test_case("1.0", FlagValue::Number(1.0));
+        test_case("1", FlagValue::Number(1.0));
+        test_case("true", FlagValue::Bool(true));
+        test_case("\"foo\"", FlagValue::Str("foo".to_string()));
+        test_case("{}", FlagValue::Json(json!({})));
     }
 }

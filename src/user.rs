@@ -23,8 +23,7 @@ lazy_static! {
 pub enum AttributeValue {
     String(String),
     Array(Vec<AttributeValue>),
-    Int(i64),
-    Float(f64),
+    Number(f64),
     Bool(bool),
     Object(HashMap<String, AttributeValue>),
     Null,
@@ -49,14 +48,14 @@ impl From<bool> for AttributeValue {
 }
 
 impl From<i64> for AttributeValue {
-    fn from(i: i64) -> AttributeValue {
-        AttributeValue::Int(i)
+    fn from(i: i64) -> Self {
+        AttributeValue::Number(i as f64)
     }
 }
 
 impl From<f64> for AttributeValue {
     fn from(f: f64) -> Self {
-        AttributeValue::Float(f)
+        AttributeValue::Number(f)
     }
 }
 
@@ -114,8 +113,7 @@ impl AttributeValue {
     /// to_f64 returns the wrapped value as a float for numeric types, and None otherwise.
     pub fn to_f64(&self) -> Option<f64> {
         match self {
-            AttributeValue::Float(f) => Some(*f),
-            AttributeValue::Int(i) => Some(*i as f64),
+            AttributeValue::Number(f) => Some(*f),
             _ => None,
         }
     }
@@ -135,8 +133,7 @@ impl AttributeValue {
     /// It will return None if the conversion fails or if no conversion is possible.
     pub fn to_datetime(&self) -> Option<chrono::DateTime<Utc>> {
         match self {
-            AttributeValue::Int(millis) => Some(Utc.timestamp_millis(*millis)),
-            AttributeValue::Float(millis) => {
+            AttributeValue::Number(millis) => {
                 f64_to_i64_safe(*millis).map(|millis| Utc.timestamp_millis(millis))
             }
             AttributeValue::String(s) => {
@@ -192,8 +189,7 @@ impl AttributeValue {
     {
         match self {
             AttributeValue::String(_)
-            | AttributeValue::Int(_)
-            | AttributeValue::Float(_)
+            | AttributeValue::Number(_)
             | AttributeValue::Bool(_)
             | AttributeValue::Object(_) => {
                 if p(self) {
@@ -207,10 +203,20 @@ impl AttributeValue {
         }
     }
 
+    #[allow(clippy::float_cmp)]
     fn as_bucketable(&self) -> Option<String> {
         match self {
             AttributeValue::String(s) => Some(s.clone()),
-            AttributeValue::Int(i) => Some(i.to_string()),
+            AttributeValue::Number(f) => {
+                // We only support integer values as bucketable
+                f64_to_i64_safe(*f).and_then(|i| {
+                    if i as f64 == *f {
+                        Some(i.to_string())
+                    } else {
+                        None
+                    }
+                })
+            }
             _ => None,
         }
     }
@@ -267,8 +273,7 @@ impl TypeError {
             actual_type: match actual_value {
                 AttributeValue::Array(_) => "Array",
                 AttributeValue::Bool(_) => "Bool",
-                AttributeValue::Int(_) => "Int",
-                AttributeValue::Float(_) => "Float",
+                AttributeValue::Number(_) => "Number",
                 AttributeValue::Null => "Null",
                 AttributeValue::Object(_) => "Object",
                 AttributeValue::String(_) => "String",
@@ -642,7 +647,7 @@ mod tests {
     fn collect_array() {
         assert_eq!(
             Some(10_i64).into_iter().collect::<AttributeValue>(),
-            AttributeValue::Array(vec![AttributeValue::Int(10_i64)])
+            AttributeValue::Array(vec![AttributeValue::Number(10_f64)])
         );
     }
 
@@ -652,7 +657,7 @@ mod tests {
             Some(("abc", 10_i64))
                 .into_iter()
                 .collect::<AttributeValue>(),
-            AttributeValue::Object(hashmap! {"abc".to_string() => AttributeValue::Int(10_i64)})
+            AttributeValue::Object(hashmap! {"abc".to_string() => AttributeValue::Number(10_f64)})
         );
     }
 
@@ -679,5 +684,25 @@ mod tests {
         user.attribute("anonymous", 123).unwrap_err();
         user.attribute("custom", "123").unwrap();
         user.attribute("custom", 123).unwrap();
+    }
+
+    #[test]
+    fn deserialization() {
+        fn test_case(json: &str, expected: AttributeValue) {
+            assert_eq!(
+                serde_json::from_str::<AttributeValue>(json).unwrap(),
+                expected
+            );
+        }
+
+        test_case("1.0", AttributeValue::Number(1.0));
+        test_case("1", AttributeValue::Number(1.0));
+        test_case("true", AttributeValue::Bool(true));
+        test_case("\"foo\"", AttributeValue::String("foo".to_string()));
+        test_case("{}", AttributeValue::Object(hashmap![]));
+        test_case(
+            r#"{"foo":123}"#,
+            AttributeValue::Object(hashmap!["foo".to_string() => AttributeValue::Number(123.0)]),
+        );
     }
 }
