@@ -128,23 +128,16 @@ impl AttributeValue {
 
     /// to_datetime will attempt to convert any of the following into a chrono::DateTime in UTC:
     ///  * RFC3339/ISO8601 timestamp (example: "2016-04-16T17:09:12.759-07:00")
-    ///  * Unix epoch milliseconds as string
-    ///  * Unix milliseconds as number
+    ///  * Unix epoch milliseconds as number
     /// It will return None if the conversion fails or if no conversion is possible.
     pub fn to_datetime(&self) -> Option<chrono::DateTime<Utc>> {
         match self {
             AttributeValue::Number(millis) => {
                 f64_to_i64_safe(*millis).map(|millis| Utc.timestamp_millis(millis))
             }
-            AttributeValue::String(s) => {
-                if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-                    Some(dt.with_timezone(&Utc))
-                } else if let Ok(millis) = s.parse() {
-                    Utc.timestamp_millis_opt(millis).single()
-                } else {
-                    None
-                }
-            }
+            AttributeValue::String(s) => chrono::DateTime::parse_from_rfc3339(s)
+                .map(|dt| dt.with_timezone(&Utc))
+                .ok(),
             AttributeValue::Bool(_) | AttributeValue::Null => None,
             other => {
                 warn!(

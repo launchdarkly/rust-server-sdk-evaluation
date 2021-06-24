@@ -400,9 +400,9 @@ mod tests {
         assert!(!Op::After.matches(&anum(yesterday_millis), &anum(today_millis)));
         assert!(!Op::After.matches(&anum(today_millis), &anum(today_millis)));
 
-        // numeric strings get converted as millis
-        assert!(Op::Before.matches(&astring(&yesterday_millis.to_string()), &anum(today_millis)));
-        assert!(Op::After.matches(&anum(today_millis), &astring(&yesterday_millis.to_string())));
+        // numeric strings don't get converted to millis
+        assert!(!Op::Before.matches(&astring(&yesterday_millis.to_string()), &anum(today_millis)));
+        assert!(!Op::After.matches(&anum(today_millis), &astring(&yesterday_millis.to_string())));
 
         // date-formatted strings get parsed
         assert!(Op::Before.matches(
