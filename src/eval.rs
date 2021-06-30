@@ -91,9 +91,6 @@ impl<T> Detail<T> {
 }
 
 /// Reason describes the reason that a flag evaluation producted a particular value.
-///
-/// The Serialize implementation is used internally in cases where LaunchDarkly
-/// needs to unmarshal a Reason value from JSON.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "kind")]
 pub enum Reason {
@@ -107,6 +104,8 @@ pub enum Reason {
         rule_index: usize,
         #[serde(skip_serializing_if = "String::is_empty")]
         rule_id: String,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        in_experiment: bool,
     },
     /// PrerequisiteFailed indicates that the flag was considered off because it had at
     /// least one prerequisite flag that either was off or did not return the desired variation.
@@ -114,7 +113,11 @@ pub enum Reason {
     PrerequisiteFailed { prerequisite_key: String },
     /// Fallthrough indicates that the flag was on but the user did not match any targets
     /// or rules.
-    Fallthrough,
+    #[serde(rename_all = "camelCase")]
+    Fallthrough {
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        in_experiment: bool,
+    },
     /// Error indicates that the flag could not be evaluated, e.g. because it does not
     /// exist or due to an unexpected error. In this case the result value will be the default value
     /// that the caller passed to the client.
@@ -122,6 +125,16 @@ pub enum Reason {
         #[serde(rename = "errorKind")]
         error: Error,
     },
+}
+
+impl Reason {
+    pub fn is_in_experiment(&self) -> bool {
+        match self {
+            Reason::RuleMatch { in_experiment, .. } => *in_experiment,
+            Reason::Fallthrough { in_experiment } => *in_experiment,
+            _ => false,
+        }
+    }
 }
 
 /// Error is returned via a [`Reason::Error`] when the client could not evaluate a flag, and
@@ -144,4 +157,81 @@ pub enum Error {
     /// Exception indicates that an unexpected error stopped flag evaluation; check the
     /// log for details.
     Exception,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, Reason};
+
+    #[test]
+    fn reason_serialization() {
+        struct Case<'a> {
+            reason: Reason,
+            json: &'a str,
+        }
+
+        let cases = vec![
+            Case {
+                reason: Reason::Off,
+                json: r#"{"kind":"OFF"}"#,
+            },
+            Case {
+                reason: Reason::Fallthrough {
+                    in_experiment: false,
+                },
+                json: r#"{"kind":"FALLTHROUGH"}"#,
+            },
+            Case {
+                reason: Reason::Fallthrough {
+                    in_experiment: true,
+                },
+                json: r#"{"kind":"FALLTHROUGH","inExperiment":true}"#,
+            },
+            Case {
+                reason: Reason::TargetMatch {},
+                json: r#"{"kind":"TARGET_MATCH"}"#,
+            },
+            Case {
+                reason: Reason::RuleMatch {
+                    rule_index: 1,
+                    rule_id: "x".into(),
+                    in_experiment: false,
+                },
+                json: r#"{"kind":"RULE_MATCH","ruleIndex":1,"ruleId":"x"}"#,
+            },
+            Case {
+                reason: Reason::RuleMatch {
+                    rule_index: 1,
+                    rule_id: "x".into(),
+                    in_experiment: true,
+                },
+                json: r#"{"kind":"RULE_MATCH","ruleIndex":1,"ruleId":"x","inExperiment":true}"#,
+            },
+            Case {
+                reason: Reason::PrerequisiteFailed {
+                    prerequisite_key: "x".into(),
+                },
+                json: r#"{"kind":"PREREQUISITE_FAILED","prerequisiteKey":"x"}"#,
+            },
+            Case {
+                reason: Reason::Error {
+                    error: Error::WrongType,
+                },
+                json: r#"{"kind":"ERROR","errorKind":"WRONG_TYPE"}"#,
+            },
+        ];
+
+        for Case {
+            reason,
+            json: expected_json,
+        } in cases
+        {
+            let json = serde_json::to_string(&reason).unwrap();
+            assert_eq!(
+                expected_json, json,
+                "unexpected serialization: {:?}",
+                reason
+            );
+        }
+    }
 }

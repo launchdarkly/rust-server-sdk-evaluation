@@ -6,6 +6,7 @@ use crate::rule::FlagRule;
 use crate::store::Store;
 use crate::user::User;
 use crate::variation::{VariationIndex, VariationOrRollout, VariationOrRolloutOrMalformed};
+use crate::BucketResult;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -88,23 +89,40 @@ impl Flag {
 
         for (rule_index, rule) in self.rules.iter().enumerate() {
             if rule.matches(&user, store) {
-                return self.value_for_variation_or_rollout(
-                    &rule.variation_or_rollout,
-                    &user,
-                    Reason::RuleMatch {
-                        rule_index,
-                        rule_id: rule.id.clone(),
-                    },
-                );
+                let result = self.resolve_variation_or_rollout(&rule.variation_or_rollout, &user);
+                return match result {
+                    Ok(BucketResult {
+                        variation_index,
+                        in_experiment,
+                    }) => {
+                        let reason = Reason::RuleMatch {
+                            rule_index,
+                            rule_id: rule.id.clone(),
+                            in_experiment,
+                        };
+                        self.variation(variation_index, reason)
+                    }
+                    Err(e) => Detail::err(e),
+                };
             }
         }
 
-        self.fallthrough
-            .get()
-            .as_ref()
-            .ok()
-            .map(|vor| self.value_for_variation_or_rollout(vor, &user, Reason::Fallthrough))
-            .unwrap_or_else(|| Detail::err(eval::Error::MalformedFlag))
+        if let VariationOrRolloutOrMalformed::VariationOrRollout(vor) = &self.fallthrough {
+            let result = self.resolve_variation_or_rollout(vor, &user);
+            return match result {
+                Ok(BucketResult {
+                    variation_index,
+                    in_experiment,
+                }) => {
+                    let reason = Reason::Fallthrough { in_experiment };
+                    self.variation(variation_index, reason)
+                }
+                Err(e) => Detail::err(e),
+            };
+        }
+
+        // we fell through, but there is no fallthrough :(
+        Detail::err(eval::Error::MalformedFlag)
     }
 
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
@@ -123,25 +141,20 @@ impl Flag {
         }
     }
 
-    fn value_for_variation_or_rollout(
+    fn resolve_variation_or_rollout(
         &self,
         vr: &VariationOrRollout,
         user: &User,
-        reason: Reason,
-    ) -> Detail<&FlagValue> {
+    ) -> Result<BucketResult, eval::Error> {
         vr.variation(&self.key, user, &self.salt)
-            .map_or(Detail::err(eval::Error::MalformedFlag), |variation| {
-                self.variation(variation, reason)
-            })
+            .ok_or(eval::Error::MalformedFlag)
     }
 
     pub fn is_experimentation_enabled(&self, reason: &Reason) -> bool {
         match reason {
-            Reason::Fallthrough => self.track_events_fallthrough,
-            Reason::RuleMatch {
-                rule_index,
-                rule_id: _,
-            } => self
+            _ if reason.is_in_experiment() => true,
+            Reason::Fallthrough { .. } => self.track_events_fallthrough,
+            Reason::RuleMatch { rule_index, .. } => self
                 .rules
                 .get(*rule_index)
                 .map(|rule| rule.track_events)
@@ -214,6 +227,43 @@ mod tests {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
+                    "flagWithRuleExclusion".to_string() => serde_json::from_str(r#"{
+                        "key": "flag",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [
+                            {
+                                "variation": 0,
+                                "id": "6a7755ac-e47a-40ea-9579-a09dd5f061bd",
+                                "clauses": [
+                                    {
+                                        "attribute": "platform",
+                                        "op": "in",
+                                        "values": [
+                                            "web",
+                                            "aem",
+                                            "ios"
+                                        ],
+                                        "negate": false
+                                    }
+                                ],
+                                "trackEvents": true
+                            }
+                        ],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty",
+                        "trackEvents": false,
+                        "trackEventsFallthrough": true,
+                        "debugEventsUntilDate": 1500000000
+                    }"#).unwrap(),
                     "flagWithTrackAndDebugEvents".to_string() => serde_json::from_str(r#"{
                         "key": "flag",
                         "version": 42,
@@ -233,7 +283,36 @@ mod tests {
                         "trackEventsFallthrough": true,
                         "debugEventsUntilDate": 1500000000
                     }"#).unwrap(),
-                    "flagWithRolloutBucket".to_string() => serde_json::from_str(r#"{
+                    "flagWithExperiment".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithExperiment",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [],
+                        "prerequisites": [],
+                        "fallthrough": {
+                          "rollout": {
+                            "kind": "experiment",
+                            "seed": 61,
+                            "variations": [
+                              {"variation": 0, "weight": 10000, "untracked": false},
+                              {"variation": 1, "weight": 20000, "untracked": false},
+                              {"variation": 0, "weight": 70000, "untracked": true}
+                            ]
+                          }
+                        },
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty",
+                        "trackEvents": false,
+                        "trackEventsFallthrough": false,
+                        "debugEventsUntilDate": 1500000000
+                    }"#).unwrap(),
+                    "flagWithRolloutBucketBy".to_string() => serde_json::from_str(r#"{
                         "key": "rollout",
                         "on": true,
                         "prerequisites": [],
@@ -488,6 +567,62 @@ mod tests {
     }
 
     #[test]
+    fn is_experimentation_enabled() {
+        let store = TestStore::new();
+
+        let flag = store.flag("flag").unwrap();
+        asserting!("defaults to false")
+            .that(&flag.is_experimentation_enabled(&Off))
+            .is_false();
+        asserting!("false for fallthrough if trackEventsFallthrough is false")
+            .that(&flag.is_experimentation_enabled(&Fallthrough {
+                in_experiment: false,
+            }))
+            .is_false();
+
+        let flag = store.flag("flagWithRuleExclusion").unwrap();
+        asserting!("true for fallthrough if trackEventsFallthrough is true")
+            .that(&flag.is_experimentation_enabled(&Fallthrough {
+                in_experiment: false,
+            }))
+            .is_true();
+        asserting!("true for rule if rule.trackEvents is true")
+            .that(&flag.is_experimentation_enabled(&RuleMatch {
+                rule_index: 0,
+                rule_id: flag.rules.get(0).unwrap().id.clone(),
+                in_experiment: false,
+            }))
+            .is_true();
+
+        let flag = store.flag("flagWithExperiment").unwrap();
+        asserting!("true for fallthrough if reason says it is")
+            .that(&flag.is_experimentation_enabled(&Fallthrough {
+                in_experiment: true,
+            }))
+            .is_true();
+        asserting!("false for fallthrough if reason says it is")
+            .that(&flag.is_experimentation_enabled(&Fallthrough {
+                in_experiment: false,
+            }))
+            .is_false();
+        // note this flag doesn't even have a rule - doesn't matter, we go by the reason
+        asserting!("true for rule if reason says it is")
+            .that(&flag.is_experimentation_enabled(&RuleMatch {
+                rule_index: 42,
+                rule_id: "lol".into(),
+                in_experiment: true,
+            }))
+            .is_true();
+        asserting!("false for rule if reason says it is")
+            .that(&flag.is_experimentation_enabled(&RuleMatch {
+                rule_index: 42,
+                rule_id: "lol".into(),
+                in_experiment: false,
+            }))
+            .is_false();
+    }
+
+    #[test]
     fn test_eval_flag_basic() {
         let store = TestStore::new();
         let alice = User::with_key("alice").build(); // not targeted
@@ -520,7 +655,9 @@ mod tests {
         let detail = flag.evaluate(&alice, &store);
         assert_that!(detail.value).contains_value(&Bool(true));
         assert_that!(detail.variation_index).contains_value(1);
-        assert_that!(detail.reason).is_equal_to(&Fallthrough);
+        assert_that!(detail.reason).is_equal_to(&Fallthrough {
+            in_experiment: false,
+        });
 
         let detail = flag.evaluate(&bob, &store);
         assert_that!(detail.value).contains_value(&Bool(false));
@@ -565,7 +702,9 @@ mod tests {
         let detail = flag.evaluate(&alice, &store);
         assert_that!(detail.value).contains_value(&Bool(true));
         assert_that!(detail.variation_index).contains_value(1);
-        assert_that!(detail.reason).is_equal_to(&Fallthrough);
+        assert_that!(detail.reason).is_equal_to(&Fallthrough {
+            in_experiment: false,
+        });
 
         let detail = flag.evaluate(&bob, &store);
         assert_that!(detail.value).contains_value(&Bool(false));
@@ -573,6 +712,7 @@ mod tests {
         assert_that!(detail.reason).is_equal_to(&RuleMatch {
             rule_id: "in-rule".to_string(),
             rule_index: 0,
+            in_experiment: false,
         });
     }
 
@@ -655,18 +795,21 @@ mod tests {
         assert_that!(detail.reason).is_equal_to(Reason::RuleMatch {
             rule_id: "match-rule".to_string(),
             rule_index: 0,
+            in_experiment: false,
         });
         let detail = flag.evaluate(&bob, &store);
         asserting!("bob is not in segment and should see fallthrough")
             .that(&detail.value)
             .contains_value(&Bool(true));
-        assert_that!(detail.reason).is_equal_to(Reason::Fallthrough);
+        assert_that!(detail.reason).is_equal_to(Reason::Fallthrough {
+            in_experiment: false,
+        });
     }
 
     #[test]
     fn test_rollout_flag() {
         let store = TestStore::new();
-        let flag = store.flag("flagWithRolloutBucket").unwrap();
+        let flag = store.flag("flagWithRolloutBucketBy").unwrap();
 
         let alice = User::with_key("anonymous")
             .custom(hashmap! {
@@ -677,5 +820,26 @@ mod tests {
 
         let detail = flag.evaluate(&alice, &store);
         assert_that!(detail.value).contains_value(&Str("rollout1".to_string()));
+    }
+
+    #[test]
+    fn test_experiment_flag() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithExperiment").unwrap();
+
+        let user_a = User::with_key("userKeyA").build();
+        let detail = flag.evaluate(&user_a, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert!(detail.reason.is_in_experiment());
+
+        let user_b = User::with_key("userKeyB").build();
+        let detail = flag.evaluate(&user_b, &store);
+        assert_that!(detail.value).contains_value(&Bool(true));
+        assert!(detail.reason.is_in_experiment());
+
+        let user_c = User::with_key("userKeyC").build();
+        let detail = flag.evaluate(&user_c, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert!(!detail.reason.is_in_experiment());
     }
 }

@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::rule::Clause;
 use crate::user::User;
 use crate::variation::VariationWeight;
+use crate::BucketPrefix;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,7 +73,8 @@ impl SegmentRule {
         match self.weight {
             Some(weight) if weight >= 0.0 => {
                 let bucket_by = self.bucket_by.as_deref();
-                let bucket = user.bucket(key, bucket_by, salt);
+                let prefix = BucketPrefix::KeyAndSalt(key, salt);
+                let bucket = user.bucket(bucket_by, prefix);
                 bucket < weight / 100_000.0
             }
             _ => true,
