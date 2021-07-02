@@ -25,7 +25,8 @@ pub struct Segment {
     deleted: bool,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 struct SegmentRule {
     clauses: Vec<Clause>,
     weight: Option<VariationWeight>,
@@ -146,6 +147,43 @@ mod tests {
             weight: Some(30_000.0),
             bucket_by,
         }
+    }
+
+    #[test]
+    fn segment_rule_parse() {
+        let rule: SegmentRule =
+            serde_json::from_str(r#"{"clauses": [], "weight": null, "bucketBy": null}"#)
+                .expect("should parse");
+        assert_eq!(
+            rule,
+            SegmentRule {
+                clauses: vec![],
+                weight: None,
+                bucket_by: None,
+            }
+        );
+
+        let rule: SegmentRule = serde_json::from_str(
+            r#"{
+                "clauses":[{
+                    "attribute": "name",
+                    "negate": false,
+                    "op": "matches",
+                    "values": ["xyz"]
+                }],
+                "weight": 10000,
+                "bucketBy": "country"
+            }"#,
+        )
+        .expect("should parse");
+        assert_eq!(
+            rule,
+            SegmentRule {
+                clauses: vec![Clause::new_match("name", "xyz".into())],
+                weight: Some(10_000.0),
+                bucket_by: Some("country".to_string()),
+            }
+        );
     }
 
     #[test]

@@ -7,7 +7,7 @@ use crate::store::Store;
 use crate::user::{AttributeValue, User};
 use crate::variation::VariationOrRollout;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Clause {
     attribute: String,
     negate: bool,
