@@ -126,7 +126,7 @@ impl FlagRule {
                     .map(|key| AttributeValue::String(key.to_string()))
                     .collect(),
             }],
-            variation_or_rollout: VariationOrRollout::Variation(1),
+            variation_or_rollout: VariationOrRollout::Variation { variation: 1 },
             track_events: false,
         }
     }

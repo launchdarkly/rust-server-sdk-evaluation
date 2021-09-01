@@ -5,7 +5,7 @@ use crate::flag_value::FlagValue;
 use crate::rule::FlagRule;
 use crate::store::Store;
 use crate::user::User;
-use crate::variation::{VariationIndex, VariationOrRollout, VariationOrRolloutOrMalformed};
+use crate::variation::{VariationIndex, VariationOrRollout};
 use crate::BucketResult;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -23,7 +23,7 @@ pub struct Flag {
     rules: Vec<FlagRule>,
     prerequisites: Vec<Prereq>,
 
-    fallthrough: VariationOrRolloutOrMalformed,
+    fallthrough: VariationOrRollout,
     off_variation: Option<VariationIndex>,
     variations: Vec<FlagValue>,
     pub client_side_availability: ClientSideAvailability,
@@ -107,22 +107,17 @@ impl Flag {
             }
         }
 
-        if let VariationOrRolloutOrMalformed::VariationOrRollout(vor) = &self.fallthrough {
-            let result = self.resolve_variation_or_rollout(vor, &user);
-            return match result {
-                Ok(BucketResult {
-                    variation_index,
-                    in_experiment,
-                }) => {
-                    let reason = Reason::Fallthrough { in_experiment };
-                    self.variation(variation_index, reason)
-                }
-                Err(e) => Detail::err(e),
-            };
-        }
-
-        // we fell through, but there is no fallthrough :(
-        Detail::err(eval::Error::MalformedFlag)
+        let result = self.resolve_variation_or_rollout(&self.fallthrough, &user);
+        return match result {
+            Ok(BucketResult {
+                variation_index,
+                in_experiment,
+            }) => {
+                let reason = Reason::Fallthrough { in_experiment };
+                self.variation(variation_index, reason)
+            }
+            Err(e) => Detail::err(e),
+        };
     }
 
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
@@ -173,9 +168,7 @@ impl Flag {
             targets: vec![],
             rules: vec![crate::rule::FlagRule::new_segment_match(segment_keys)],
             prerequisites: vec![],
-            fallthrough: VariationOrRolloutOrMalformed::VariationOrRollout(
-                VariationOrRollout::Variation(0),
-            ),
+            fallthrough: VariationOrRollout::Variation { variation: 0 },
             off_variation: Some(0),
             variations: vec![FlagValue::Bool(false), FlagValue::Bool(true)],
             client_side_availability: ClientSideAvailability {
@@ -536,6 +529,31 @@ mod tests {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
+                    "flagWithMalformedRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithMalformedRule",
+                        "version": 42,
+                        "on": false,
+                        "targets": [],
+                        "rules": [{
+                            "id": "in-rule",
+                            "clauses": [{
+                                "attribute": "key",
+                                "negate": false,
+                                "op": "in",
+                                "values": ["yes"]
+                            }],
+                            "trackEvents": false
+                        }],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty"
+                    }"#).unwrap(),
                 },
                 segments: hashmap! {
                     "segment".to_string() => serde_json::from_str(r#"{
@@ -665,7 +683,7 @@ mod tests {
         assert_that!(detail.reason).is_equal_to(&TargetMatch);
 
         // flip default variation
-        flag.fallthrough = VariationOrRollout::Variation(0).into();
+        flag.fallthrough = VariationOrRollout::Variation { variation: 0 };
         let detail = flag.evaluate(&alice, &store);
         assert_that!(detail.value).contains_value(&Bool(false));
         assert_that!(detail.variation_index).contains_value(0);
@@ -841,5 +859,36 @@ mod tests {
         let detail = flag.evaluate(&user_c, &store);
         assert_that!(detail.value).contains_value(&Bool(false));
         assert!(!detail.reason.is_in_experiment());
+    }
+
+    #[test]
+    fn test_malformed_rule() {
+        let store = TestStore::new();
+        let mut flag = store.flag("flagWithMalformedRule").unwrap().clone();
+
+        let user_a = User::with_key("no").build();
+        let user_b = User::with_key("yes").build();
+
+        let detail = flag.evaluate(&user_a, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::Off);
+
+        let detail = flag.evaluate(&user_b, &store);
+        assert_that!(detail.value).contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::Off);
+
+        flag.on = true;
+
+        let detail = flag.evaluate(&user_a, &store);
+        assert_that!(detail.value).contains_value(&Bool(true));
+        assert_that!(detail.reason).is_equal_to(Reason::Fallthrough {
+            in_experiment: false,
+        });
+
+        let detail = flag.evaluate(&user_b, &store);
+        assert_that!(detail.value).is_none();
+        assert_that!(detail.reason).is_equal_to(Reason::Error {
+            error: eval::Error::MalformedFlag,
+        });
     }
 }

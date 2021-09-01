@@ -21,13 +21,6 @@ impl From<&VariationIndex> for BucketResult {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub enum VariationOrRollout {
-    Variation(VariationIndex),
-    Rollout(Rollout),
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub enum RolloutKind {
     Rollout,
     Experiment,
@@ -61,10 +54,14 @@ impl Rollout {
     }
 }
 
+// This enum is a bit oddly-shaped because data errors may cause the server to emit rules with neither or both of a
+// variation or rollout, and we need to treat invalid states with grace (i.e. don't throw a 500 on deserialization, and
+// prefer variation if both are present)
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(untagged)]
-pub(crate) enum VariationOrRolloutOrMalformed {
-    VariationOrRollout(VariationOrRollout),
+pub enum VariationOrRollout {
+    Variation { variation: VariationIndex },
+    Rollout { rollout: Rollout },
     Malformed(serde_json::Value),
 }
 
@@ -104,13 +101,16 @@ impl VariationOrRollout {
         salt: &str,
     ) -> Option<BucketResult> {
         match self {
-            VariationOrRollout::Variation(variation) => Some(variation.into()),
-            VariationOrRollout::Rollout(Rollout {
-                kind,
-                bucket_by,
-                variations,
-                seed,
-            }) => {
+            VariationOrRollout::Variation { variation: var } => Some(var.into()),
+            VariationOrRollout::Rollout {
+                rollout:
+                    Rollout {
+                        kind,
+                        bucket_by,
+                        variations,
+                        seed,
+                    },
+            } => {
                 let is_experiment = kind == &RolloutKind::Experiment;
 
                 let prefix = match seed {
@@ -130,25 +130,8 @@ impl VariationOrRollout {
                     .last()
                     .map(|var| var.as_bucket_result(is_experiment))
             }
+            VariationOrRollout::Malformed(_) => None,
         }
-    }
-}
-
-impl VariationOrRolloutOrMalformed {
-    #[cfg(test)]
-    fn get(&self) -> Result<&VariationOrRollout, String> {
-        match self {
-            VariationOrRolloutOrMalformed::VariationOrRollout(v) => Ok(v),
-            VariationOrRolloutOrMalformed::Malformed(v) => {
-                Err(format!("malformed variation_or_rollout: {}", v))
-            }
-        }
-    }
-}
-
-impl From<VariationOrRollout> for VariationOrRolloutOrMalformed {
-    fn from(vor: VariationOrRollout) -> VariationOrRolloutOrMalformed {
-        VariationOrRolloutOrMalformed::VariationOrRollout(vor)
     }
 }
 
@@ -161,39 +144,41 @@ mod tests {
 
     #[test]
     fn test_parse_variation_or_rollout() {
-        let variation: VariationOrRolloutOrMalformed =
+        let variation: VariationOrRollout =
             serde_json::from_str(r#"{"variation":4}"#).expect("should parse");
 
-        assert_that!(variation.get()).is_ok_containing(&VariationOrRollout::Variation(4));
+        assert_that!(variation).is_equal_to(&VariationOrRollout::Variation { variation: 4 });
 
-        let rollout: VariationOrRolloutOrMalformed =
+        let rollout: VariationOrRollout =
             serde_json::from_str(r#"{"rollout":{"variations":[{"variation":1,"weight":100000}]}}"#)
                 .expect("should parse");
-        assert_that!(rollout.get()).is_ok_containing(&VariationOrRollout::Rollout(
-            Rollout::with_variations(vec![WeightedVariation::new(1, 100000.0)]),
-        ));
+        assert_that!(rollout).is_equal_to(&VariationOrRollout::Rollout {
+            rollout: Rollout::with_variations(vec![WeightedVariation::new(1, 100000.0)]),
+        });
 
-        let rollout_bucket_by: VariationOrRolloutOrMalformed = serde_json::from_str(
+        let rollout_bucket_by: VariationOrRollout = serde_json::from_str(
             r#"{"rollout":{"bucketBy":"bucket","variations":[{"variation":1,"weight":100000}]}}"#,
         )
         .expect("should parse");
-        assert_that!(rollout_bucket_by.get()).is_ok_containing(&VariationOrRollout::Rollout(
-            Rollout {
+        assert_that!(rollout_bucket_by).is_equal_to(&VariationOrRollout::Rollout {
+            rollout: Rollout {
                 bucket_by: Some("bucket".to_string()),
                 ..Rollout::with_variations(vec![WeightedVariation::new(1, 100000.0)])
             },
-        ));
+        });
 
-        let rollout_seed: VariationOrRolloutOrMalformed = serde_json::from_str(
+        let rollout_seed: VariationOrRollout = serde_json::from_str(
             r#"{"rollout":{"variations":[{"variation":1,"weight":100000}],"seed":42}}"#,
         )
         .expect("should parse");
-        assert_that!(rollout_seed.get()).is_ok_containing(&VariationOrRollout::Rollout(Rollout {
-            seed: Some(42),
-            ..Rollout::with_variations(vec![WeightedVariation::new(1, 100000.0)])
-        }));
+        assert_that!(rollout_seed).is_equal_to(&VariationOrRollout::Rollout {
+            rollout: Rollout {
+                seed: Some(42),
+                ..Rollout::with_variations(vec![WeightedVariation::new(1, 100000.0)])
+            },
+        });
 
-        let rollout_experiment: VariationOrRolloutOrMalformed = serde_json::from_str(
+        let rollout_experiment: VariationOrRollout = serde_json::from_str(
             r#"{
                  "rollout":
                    {
@@ -208,8 +193,8 @@ mod tests {
             }"#,
         )
         .expect("should parse");
-        assert_that!(rollout_experiment.get()).is_ok_containing(&VariationOrRollout::Rollout(
-            Rollout {
+        assert_that!(rollout_experiment).is_equal_to(&VariationOrRollout::Rollout {
+            rollout: Rollout {
                 kind: RolloutKind::Experiment,
                 seed: Some(42),
                 ..Rollout::with_variations(vec![
@@ -221,11 +206,19 @@ mod tests {
                     },
                 ])
             },
-        ));
+        });
 
-        let malformed: VariationOrRolloutOrMalformed =
-            serde_json::from_str("{}").expect("should parse");
-        assert_that!(malformed.get()).is_err();
+        let malformed: VariationOrRollout = serde_json::from_str(r#"{}"#).expect("should parse");
+        assert_that!(malformed).is_equal_to(VariationOrRollout::Malformed(serde_json::json!({})));
+
+        let overspecified: VariationOrRollout = serde_json::from_str(
+            r#"{
+                "variation": 1,
+                "rollout": {"variations": [{"variation": 1, "weight": 100000}], "seed": 42}
+            }"#,
+        )
+        .expect("should parse");
+        assert_that!(overspecified).is_equal_to(VariationOrRollout::Variation { variation: 1 });
     }
 
     #[test]
@@ -235,7 +228,9 @@ mod tests {
 
         let wv0 = WeightedVariation::new(0, 60_000.0);
         let wv1 = WeightedVariation::new(1, 40_000.0);
-        let rollout = VariationOrRollout::Rollout(Rollout::with_variations(vec![wv0, wv1]));
+        let rollout = VariationOrRollout::Rollout {
+            rollout: Rollout::with_variations(vec![wv0, wv1]),
+        };
 
         asserting!("userKeyA (bucket 0.42157587) should get variation 0")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyA").build(), SALT))
@@ -277,11 +272,13 @@ mod tests {
             weight: 70_000.0,
             untracked: true,
         };
-        let rollout = VariationOrRollout::Rollout(Rollout {
-            seed: Some(61),
-            kind: RolloutKind::Experiment,
-            ..Rollout::with_variations(vec![wv0, wv1, wv0_untracked])
-        });
+        let rollout = VariationOrRollout::Rollout {
+            rollout: Rollout {
+                seed: Some(61),
+                kind: RolloutKind::Experiment,
+                ..Rollout::with_variations(vec![wv0, wv1, wv0_untracked])
+            },
+        };
 
         asserting!("userKeyA (bucket 0.09801207) should get variation 0 and be in the experiment")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyA").build(), SALT))
@@ -313,7 +310,9 @@ mod tests {
         let wv0 = WeightedVariation::new(0, 1.0);
         let wv1 = WeightedVariation::new(1, 2.0);
         let wv2 = WeightedVariation::new(2, 3.0);
-        let rollout = VariationOrRollout::Rollout(Rollout::with_variations(vec![wv0, wv1, wv2]));
+        let rollout = VariationOrRollout::Rollout {
+            rollout: Rollout::with_variations(vec![wv0, wv1, wv2]),
+        };
 
         asserting!("userKeyD (bucket 0.7816281) should get variation 2")
             .that(&rollout.variation(HASH_KEY, &User::with_key("userKeyD").build(), SALT))
