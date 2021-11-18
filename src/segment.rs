@@ -20,7 +20,7 @@ pub struct Segment {
     #[serde(default)]
     generation: Option<i64>,
 
-    version: i64,
+    pub version: i64,
     #[serde(default)]
     deleted: bool,
 }
@@ -34,6 +34,10 @@ struct SegmentRule {
 }
 
 impl Segment {
+    pub fn is_newer_than(&self, segment: &Segment) -> bool {
+        self.version > segment.version
+    }
+
     // TODO(ch108586) segment explanations
     pub fn contains(&self, user: &User) -> bool {
         let user_key = user.key().to_string();
@@ -294,5 +298,32 @@ mod tests {
         let user_z = User::with_key("x").name("userKeyZ").build(); // bucket 0.45679215
         assert_segment_match(&segment, user_a, true);
         assert_segment_match(&segment, user_z, false);
+    }
+
+    #[test]
+    fn test_segment_can_determine_which_is_newer() {
+        let oldest = Segment {
+            key: "oldest".into(),
+            included: Vec::new(),
+            excluded: Vec::new(),
+            rules: Vec::new(),
+            salt: "salty".into(),
+            unbounded: false,
+            generation: None,
+            version: 1,
+            deleted: false,
+        };
+        let mut middle = oldest.clone();
+        middle.version = 2;
+
+        let mut newest = middle.clone();
+        newest.version = 3;
+
+        assert!(newest.is_newer_than(&middle));
+        assert!(newest.is_newer_than(&oldest));
+        assert!(middle.is_newer_than(&oldest));
+
+        assert!(!oldest.is_newer_than(&middle));
+        assert!(!oldest.is_newer_than(&newest));
     }
 }

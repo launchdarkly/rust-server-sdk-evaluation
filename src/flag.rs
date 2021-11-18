@@ -120,6 +120,10 @@ impl Flag {
         };
     }
 
+    pub fn is_newer_than(&self, flag: &Flag) -> bool {
+        self.version > flag.version
+    }
+
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
         Detail {
             value: self.variations.get(index),
@@ -890,5 +894,41 @@ mod tests {
         assert_that!(detail.reason).is_equal_to(Reason::Error {
             error: eval::Error::MalformedFlag,
         });
+    }
+
+    #[test]
+    fn test_flag_can_determine_which_is_newer() {
+        let oldest = Flag {
+            key: "oldest".into(),
+            version: 1,
+            deleted: false,
+            on: true,
+            targets: Vec::new(),
+            rules: Vec::new(),
+            prerequisites: Vec::new(),
+            fallthrough: VariationOrRollout::Variation { variation: 1 },
+            off_variation: None,
+            variations: Vec::new(),
+            client_side_availability: ClientSideAvailability {
+                using_mobile_key: false,
+                using_environment_id: false,
+            },
+            salt: "salty".into(),
+            track_events: false,
+            track_events_fallthrough: false,
+            debug_events_until_date: None,
+        };
+        let mut middle = oldest.clone();
+        middle.version = 2;
+
+        let mut newest = middle.clone();
+        newest.version = 3;
+
+        assert!(newest.is_newer_than(&middle));
+        assert!(newest.is_newer_than(&oldest));
+        assert!(middle.is_newer_than(&oldest));
+
+        assert!(!oldest.is_newer_than(&middle));
+        assert!(!oldest.is_newer_than(&newest));
     }
 }
