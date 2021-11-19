@@ -4,6 +4,7 @@ mod flag_value;
 mod rule;
 mod segment;
 mod store;
+mod test_common;
 mod user;
 mod util;
 mod variation;

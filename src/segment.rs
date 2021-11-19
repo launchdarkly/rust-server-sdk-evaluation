@@ -90,6 +90,7 @@ impl SegmentRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::eval::evaluate;
     use crate::flag::Flag;
     use crate::flag_value::FlagValue;
     use crate::store::Store;
@@ -111,9 +112,9 @@ mod tests {
     }
 
     fn assert_segment_match(segment: &Segment, user: User, expected: bool) {
-        let flag = Flag::new_boolean_flag_with_segment_match(vec![&segment.key]);
         let store = segment as &TestStore;
-        let result = flag.evaluate(&user, store);
+        let flag = Flag::new_boolean_flag_with_segment_match(vec![&segment.key]);
+        let result = evaluate(store, &flag, &user, None);
         assert_eq!(result.value, Some(&FlagValue::Bool(expected)));
     }
 
@@ -209,7 +210,7 @@ mod tests {
             "segkey",
             "another-segkey",
         ]);
-        let result = flag.evaluate(&user, &segment);
+        let result = evaluate(&segment, &flag, &user, None);
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 

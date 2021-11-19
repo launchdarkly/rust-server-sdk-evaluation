@@ -186,7 +186,7 @@ impl AttributeValue {
             | AttributeValue::Bool(_)
             | AttributeValue::Object(_) => {
                 if p(self) {
-                    Some(&self)
+                    Some(self)
                 } else {
                     None
                 }
