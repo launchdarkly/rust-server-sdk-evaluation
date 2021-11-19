@@ -13,8 +13,6 @@ pub struct Flag {
     pub key: String,
     #[serde(default)]
     pub version: u64,
-    #[serde(default)]
-    deleted: bool,
 
     pub(crate) on: bool,
 
@@ -57,10 +55,6 @@ pub struct ClientSideAvailability {
 }
 
 impl Flag {
-    pub fn is_newer_than(&self, flag: &Flag) -> bool {
-        self.version > flag.version
-    }
-
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
         Detail {
             value: self.variations.get(index),
@@ -104,7 +98,6 @@ impl Flag {
         Self {
             key: "feature".to_string(),
             version: 1,
-            deleted: false,
             on: true,
             targets: vec![],
             rules: vec![crate::rule::FlagRule::new_segment_match(segment_keys)],
@@ -126,10 +119,8 @@ impl Flag {
 
 #[cfg(test)]
 mod tests {
-    use super::Flag;
     use crate::store::Store;
     use crate::test_common::TestStore;
-    use crate::{ClientSideAvailability, VariationOrRollout};
     use spectral::prelude::*;
 
     use crate::eval::Reason::*;
@@ -188,41 +179,5 @@ mod tests {
                 in_experiment: false,
             }))
             .is_false();
-    }
-
-    #[test]
-    fn test_flag_can_determine_which_is_newer() {
-        let oldest = Flag {
-            key: "oldest".into(),
-            version: 1,
-            deleted: false,
-            on: true,
-            targets: Vec::new(),
-            rules: Vec::new(),
-            prerequisites: Vec::new(),
-            fallthrough: VariationOrRollout::Variation { variation: 1 },
-            off_variation: None,
-            variations: Vec::new(),
-            client_side_availability: ClientSideAvailability {
-                using_mobile_key: false,
-                using_environment_id: false,
-            },
-            salt: "salty".into(),
-            track_events: false,
-            track_events_fallthrough: false,
-            debug_events_until_date: None,
-        };
-        let mut middle = oldest.clone();
-        middle.version = 2;
-
-        let mut newest = middle.clone();
-        newest.version = 3;
-
-        assert!(newest.is_newer_than(&middle));
-        assert!(newest.is_newer_than(&oldest));
-        assert!(middle.is_newer_than(&oldest));
-
-        assert!(!oldest.is_newer_than(&middle));
-        assert!(!oldest.is_newer_than(&newest));
     }
 }
