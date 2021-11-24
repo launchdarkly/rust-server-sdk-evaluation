@@ -184,7 +184,7 @@ impl<T> Detail<T> {
     }
 }
 
-/// Reason describes the reason that a flag evaluation producted a particular value.
+/// Reason describes the reason that a flag evaluation produced a particular value.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "kind")]
 pub enum Reason {
