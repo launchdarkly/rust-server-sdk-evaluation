@@ -578,83 +578,9 @@ impl UserBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BucketPrefix;
 
     use maplit::hashmap;
     use spectral::prelude::*;
-
-    const BUCKET_TOLERANCE: f32 = 0.0000001;
-
-    #[test]
-    fn bucket_user_by_key() {
-        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
-
-        let user = User::with_key("userKeyA").build();
-        let bucket = user.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.42157587, BUCKET_TOLERANCE);
-
-        let user = User::with_key("userKeyB").build();
-        let bucket = user.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.6708485, BUCKET_TOLERANCE);
-
-        let user = User::with_key("userKeyC").build();
-        let bucket = user.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.10343106, BUCKET_TOLERANCE);
-    }
-
-    #[test]
-    fn bucket_user_by_key_with_seed() {
-        const PREFIX: BucketPrefix = BucketPrefix::Seed(61);
-
-        let user_a = User::with_key("userKeyA").build();
-        let bucket = user_a.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.09801207, BUCKET_TOLERANCE);
-
-        let user_b = User::with_key("userKeyB").build();
-        let bucket = user_b.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.14483777, BUCKET_TOLERANCE);
-
-        let user_c = User::with_key("userKeyC").build();
-        let bucket = user_c.bucket(None, PREFIX);
-        assert_that!(bucket).is_close_to(0.9242641, BUCKET_TOLERANCE);
-
-        // changing seed produces different bucket value
-        let bucket = user_a.bucket(None, BucketPrefix::Seed(60));
-        assert_that!(bucket).is_close_to(0.7008816, BUCKET_TOLERANCE)
-    }
-
-    #[test]
-    fn bucket_user_by_int_attr() {
-        const USER_KEY: &str = "userKeyD";
-        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
-
-        let custom = hashmap! {
-            "intAttr".into() => 33333.into(),
-        };
-        let user = User::with_key(USER_KEY).custom(custom).build();
-        let bucket = user.bucket(Some("intAttr"), PREFIX);
-        assert_that!(bucket).is_close_to(0.54771423, BUCKET_TOLERANCE);
-
-        let custom = hashmap! {
-        "stringAttr".into() => "33333".into(),
-        };
-        let user = User::with_key(USER_KEY).custom(custom).build();
-        let bucket2 = user.bucket(Some("stringAttr"), PREFIX);
-        assert_that!(bucket).is_close_to(bucket2, BUCKET_TOLERANCE);
-    }
-
-    #[test]
-    fn bucket_user_by_float_attr_not_allowed() {
-        const USER_KEY: &str = "userKeyE";
-        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
-
-        let custom = hashmap! {
-            "floatAttr".into() => 999.999.into(),
-        };
-        let user = User::with_key(USER_KEY).custom(custom).build();
-        let bucket = user.bucket(Some("floatAttr"), PREFIX);
-        assert_that!(bucket).is_close_to(0.0, BUCKET_TOLERANCE);
-    }
 
     #[test]
     fn parse_user_rejects_missing_key() {
