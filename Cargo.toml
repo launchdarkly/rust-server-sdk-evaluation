@@ -3,6 +3,9 @@ name = "launchdarkly-server-sdk-evaluation"
 version = "0.1.0"
 authors = ["LaunchDarkly"]
 edition = "2018"
+excludes = [
+    ".ldrelease"
+]
 
 [dependencies]
 chrono = "0.4.15"
