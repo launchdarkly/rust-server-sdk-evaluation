@@ -28,6 +28,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -62,6 +63,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -81,6 +83,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -110,6 +113,7 @@ impl TestStore {
                         },
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -168,17 +172,16 @@ impl TestStore {
                             "rollout2",
                             "rollout3"
                         ],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingMobileKey": true,
                             "usingEnvironmentId": true
                         },
-                        "clientSide": true,
                         "salt": "ce2634f116d741a7ad1b7ef363f6f9bc",
                         "trackEvents": false,
                         "trackEventsFallthrough": false,
                         "debugEventsUntilDate": null,
-                        "version": 7,
-                        "deleted": false
+                        "version": 7
                     }"#).unwrap(),
                 "flagWithTarget".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithTarget",
@@ -193,6 +196,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -212,6 +216,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -231,6 +236,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -250,6 +256,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -269,6 +276,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -288,6 +296,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -304,6 +313,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 1,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -330,6 +340,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -356,6 +367,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
@@ -381,6 +393,7 @@ impl TestStore {
                         "fallthrough": {"variation": 1},
                         "offVariation": 0,
                         "variations": [false, true],
+                        "clientSide": true,
                         "clientSideAvailability": {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true

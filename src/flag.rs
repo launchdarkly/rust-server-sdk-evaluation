@@ -1,4 +1,7 @@
-use serde::Deserialize;
+use std::fmt;
+
+use serde::de::{MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 
 use crate::eval::{self, Detail, Reason};
 use crate::flag_value::FlagValue;
@@ -23,7 +26,9 @@ pub struct Flag {
     pub(crate) fallthrough: VariationOrRollout,
     pub(crate) off_variation: Option<VariationIndex>,
     variations: Vec<FlagValue>,
-    pub client_side_availability: ClientSideAvailability,
+
+    #[serde(flatten)]
+    client_visibility: ClientVisibility,
 
     salt: String,
 
@@ -33,6 +38,73 @@ pub struct Flag {
     pub track_events_fallthrough: bool,
     #[serde(default)]
     pub debug_events_until_date: Option<u64>,
+}
+
+// This struct exists only so we can add some custom deserialization logic to account for the
+// potential presence of a client_side field in lieu of the client_side_availability field.
+#[derive(Clone, Debug)]
+struct ClientVisibility {
+    client_side_availability: ClientSideAvailability,
+}
+
+impl<'de> Deserialize<'de> for ClientVisibility {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "camelCase")]
+        enum Field {
+            ClientSide,
+            ClientSideAvailability,
+        }
+
+        struct ClientVisibilityVisitor;
+
+        impl<'de> Visitor<'de> for ClientVisibilityVisitor {
+            type Value = ClientVisibility;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct ClientVisibility")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<ClientVisibility, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut client_side = None;
+                let mut client_side_availability: Option<ClientSideAvailability> = None;
+
+                while let Some(k) = map.next_key()? {
+                    match k {
+                        Field::ClientSide => client_side = Some(map.next_value()?),
+                        Field::ClientSideAvailability => {
+                            client_side_availability = Some(map.next_value()?)
+                        }
+                    }
+                }
+
+                let client_side_availability = match client_side_availability {
+                    Some(mut csa) => {
+                        csa.explicit = true;
+                        csa
+                    }
+                    _ => ClientSideAvailability {
+                        using_environment_id: client_side.unwrap_or_default(),
+                        using_mobile_key: true,
+                        explicit: false,
+                    },
+                };
+
+                Ok(ClientVisibility {
+                    client_side_availability,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &["clientSide", "clientSideAvailability"];
+        deserializer.deserialize_struct("ClientVisibility", FIELDS, ClientVisibilityVisitor)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -52,6 +124,13 @@ pub(crate) struct Target {
 pub struct ClientSideAvailability {
     pub using_mobile_key: bool,
     pub using_environment_id: bool,
+
+    // This field determines if ClientSideAvailability was explicitly included in the JSON payload.
+    //
+    // If it was, we will use the properities of this new schema over the dated
+    // [ClientVisibility::client_side] field.
+    #[serde(skip)]
+    explicit: bool,
 }
 
 impl Flag {
@@ -69,6 +148,18 @@ impl Flag {
             Some(index) => self.variation(index, reason),
             None => Detail::empty(reason),
         }
+    }
+
+    pub fn using_environment_id(&self) -> bool {
+        self.client_visibility
+            .client_side_availability
+            .using_environment_id
+    }
+
+    pub fn using_mobile_key(&self) -> bool {
+        self.client_visibility
+            .client_side_availability
+            .using_mobile_key
     }
 
     pub(crate) fn resolve_variation_or_rollout(
@@ -105,9 +196,12 @@ impl Flag {
             fallthrough: VariationOrRollout::Variation { variation: 0 },
             off_variation: Some(0),
             variations: vec![FlagValue::Bool(false), FlagValue::Bool(true)],
-            client_side_availability: ClientSideAvailability {
-                using_mobile_key: false,
-                using_environment_id: false,
+            client_visibility: ClientVisibility {
+                client_side_availability: ClientSideAvailability {
+                    using_mobile_key: false,
+                    using_environment_id: false,
+                    explicit: true,
+                },
             },
             salt: "xyz".to_string(),
             track_events: false,
@@ -123,7 +217,73 @@ mod tests {
     use crate::test_common::TestStore;
     use spectral::prelude::*;
 
+    use super::Flag;
     use crate::eval::Reason::*;
+    use test_case::test_case;
+
+    #[test_case(true)]
+    #[test_case(false)]
+    fn handles_old_flag_schema(client_side: bool) {
+        let json = &format!(
+            r#"{{
+            "key": "flag",
+            "version": 42,
+            "on": false,
+            "targets": [],
+            "rules": [],
+            "prerequisites": [],
+            "fallthrough": {{"variation": 1}},
+            "offVariation": 0,
+            "variations": [false, true],
+            "clientSide": {},
+            "salt": "salty"
+        }}"#,
+            client_side
+        );
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let client_side_availability = &flag.client_visibility.client_side_availability;
+        assert_eq!(client_side_availability.using_environment_id, client_side);
+        assert!(client_side_availability.using_mobile_key);
+        assert_eq!(client_side_availability.explicit, false);
+
+        assert_eq!(flag.using_environment_id(), client_side);
+    }
+
+    #[test_case(true)]
+    #[test_case(false)]
+    fn handles_new_flag_schema(using_environment_id: bool) {
+        let json = &format!(
+            r#"{{
+            "key": "flag",
+            "version": 42,
+            "on": false,
+            "targets": [],
+            "rules": [],
+            "prerequisites": [],
+            "fallthrough": {{"variation": 1}},
+            "offVariation": 0,
+            "variations": [false, true],
+            "clientSideAvailability": {{
+                "usingEnvironmentId": {},
+                "usingMobileKey": false
+            }},
+            "salt": "salty"
+        }}"#,
+            using_environment_id
+        );
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let client_side_availability = &flag.client_visibility.client_side_availability;
+        assert_eq!(
+            client_side_availability.using_environment_id,
+            using_environment_id
+        );
+        assert!(!client_side_availability.using_mobile_key);
+        assert_eq!(client_side_availability.explicit, true);
+
+        assert_eq!(flag.using_environment_id(), using_environment_id);
+    }
 
     #[test]
     fn is_experimentation_enabled() {
