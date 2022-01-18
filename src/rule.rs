@@ -7,6 +7,7 @@ use crate::store::Store;
 use crate::user::{AttributeValue, User};
 use crate::variation::VariationOrRollout;
 
+/// Clause describes an individual clause within a [FlagRule] or SegmentRule.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Clause {
     attribute: String,
@@ -15,13 +16,31 @@ pub struct Clause {
     values: Vec<AttributeValue>,
 }
 
+/// FlagRule describes a single rule within a feature flag.
+///
+/// A rule consists of a set of ANDed matching conditions (Clause) for a user, along with either a
+/// fixed variation or a set of rollout percentages to use if the user matches all of the clauses.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlagRule {
+    /// A randomized identifier assigned to each rule when it is created.
+    ///
+    /// This is used to populate the id property of [crate::Reason]
     pub id: String,
     clauses: Vec<Clause>,
+
+    /// Defines what variation to return if the user matches this rule.
     #[serde(flatten)]
     pub variation_or_rollout: VariationOrRollout,
+
+    /// Used internally by the SDK analytics event system.
+    ///
+    /// This field is true if the current LaunchDarkly account has experimentation enabled, has
+    /// associated this flag with an experiment, and has enabled this rule for the experiment. This
+    /// tells the SDK to send full event data for any evaluation that matches this rule.
+    ///
+    /// The launchdarkly-server-sdk-evaluation package does not implement that behavior; it is only
+    /// in the data model for use by the SDK.
     pub track_events: bool,
 }
 
@@ -103,6 +122,9 @@ impl Clause {
 }
 
 impl FlagRule {
+    /// Determines if a user matches the provided flag rule.
+    ///
+    /// A user will match if all flag clauses match; otherwise, this method returns false.
     pub fn matches(&self, user: &User, store: &dyn Store) -> bool {
         // rules match if _all_ of their clauses do
         for clause in &self.clauses {

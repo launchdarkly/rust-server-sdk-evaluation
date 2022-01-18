@@ -10,10 +10,15 @@ use crate::user::User;
 use crate::variation::{VariationIndex, VariationOrRollout};
 use crate::BucketResult;
 
+/// Flag describes an individual feature flag.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Flag {
+    /// The unique string key of the feature flag.
     pub key: String,
+
+    /// Version is an integer that is incremented by LaunchDarkly every time the configuration of the flag is
+    /// changed.
     #[serde(default)]
     pub version: u64,
 
@@ -27,15 +32,44 @@ pub struct Flag {
     pub(crate) off_variation: Option<VariationIndex>,
     variations: Vec<FlagValue>,
 
+    /// Indicates whether a flag is available using each of the client-side authentication methods.
     #[serde(flatten)]
     client_visibility: ClientVisibility,
 
     salt: String,
 
+    /// Used internally by the SDK analytics event system.
+    ///
+    /// This field is true if the current LaunchDarkly account has data export enabled, and has turned on
+    /// the "send detailed event information for this flag" option for this flag. This tells the SDK to
+    /// send full event data for each flag evaluation, rather than only aggregate data in a summary event.
+    ///
+    /// The launchdarkly-server-sdk-evaluation crate does not implement that behavior; it is only
+    /// in the data model for use by the SDK.
     #[serde(default)]
     pub track_events: bool,
+
+    /// Used internally by the SDK analytics event system.
+    ///
+    /// This field is true if the current LaunchDarkly account has experimentation enabled, has associated
+    /// this flag with an experiment, and has enabled "default rule" for the experiment. This tells the
+    /// SDK to send full event data for any evaluation where this flag had targeting turned on but the
+    /// user did not match any targets or rules.
+    ///
+    /// The launchdarkly-server-sdk-evaluation package does not implement that behavior; it is only
+    /// in the data model for use by the SDK.
     #[serde(default)]
     pub track_events_fallthrough: bool,
+
+    /// Used internally by the SDK analytics event system.
+    ///
+    /// This field is non-zero if debugging for this flag has been turned on temporarily in the
+    /// LaunchDarkly dashboard. Debugging always is for a limited time, so the field specifies a Unix
+    /// millisecond timestamp when this mode should expire. Until then, the SDK will send full event data
+    /// for each evaluation of this flag.
+    ///
+    /// The launchdarkly-server-sdk-evaluation package does not implement that behavior; it is only in the data
+    /// model for use by the SDK.
     #[serde(default)]
     pub debug_events_until_date: Option<u64>,
 }
@@ -107,6 +141,10 @@ impl<'de> Deserialize<'de> for ClientVisibility {
     }
 }
 
+/// Prereq describes a requirement that another feature flag return a specific variation.
+///
+/// A prerequisite condition is met if the specified prerequisite flag has targeting turned on and
+/// returns the specified variation.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Prereq {
     pub(crate) key: String,
@@ -119,10 +157,18 @@ pub(crate) struct Target {
     pub(crate) variation: VariationIndex,
 }
 
+/// ClientSideAvailability describes whether a flag is available to client-side SDKs.
+///
+/// This field can be used by a server-side client to determine whether to include an individual flag in
+/// bootstrapped set of flag data (see <https://docs.launchdarkly.com/sdk/client-side/javascript#bootstrapping>).
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSideAvailability {
+    /// Indicates that this flag is available to clients using the mobile key for
+    /// authorization (includes most desktop and mobile clients).
     pub using_mobile_key: bool,
+    /// Indicates that this flag is available to clients using the environment
+    /// id to identify an environment (includes client-side javascript clients).
     pub using_environment_id: bool,
 
     // This field determines if ClientSideAvailability was explicitly included in the JSON payload.
@@ -134,6 +180,7 @@ pub struct ClientSideAvailability {
 }
 
 impl Flag {
+    /// Generate a [crate::Detail] response with the given variation and reason.
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
         Detail {
             value: self.variations.get(index),
@@ -143,6 +190,11 @@ impl Flag {
         .should_have_value(eval::Error::MalformedFlag)
     }
 
+    /// Generate a [crate::Detail] response using the flag's off variation.
+    ///
+    /// If a flag has an off_variation specified, a [crate::Detail] will be created using that
+    /// variation. If the flag does not have an off_variation specified, an empty [crate::Detail]
+    /// will be returned. See [crate::Detail::empty].
     pub fn off_value(&self, reason: Reason) -> Detail<&FlagValue> {
         match self.off_variation {
             Some(index) => self.variation(index, reason),
@@ -150,12 +202,16 @@ impl Flag {
         }
     }
 
+    /// Indicates that this flag is available to clients using the environment id to identify an
+    /// environment (includes client-side javascript clients).
     pub fn using_environment_id(&self) -> bool {
         self.client_visibility
             .client_side_availability
             .using_environment_id
     }
 
+    /// Indicates that this flag is available to clients using the mobile key for authorization
+    /// (includes most desktop and mobile clients).
     pub fn using_mobile_key(&self) -> bool {
         self.client_visibility
             .client_side_availability
@@ -171,6 +227,10 @@ impl Flag {
             .ok_or(eval::Error::MalformedFlag)
     }
 
+    /// Returns true if, based on the [crate::Reason] returned by the flag evaluation, an event for
+    /// that evaluation should have full tracking enabled and always report the reason even if the
+    /// application didn't explicitly request this. For instance, this is true if a rule was
+    /// matched that had tracking enabled for that specific rule.
     pub fn is_experimentation_enabled(&self, reason: &Reason) -> bool {
         match reason {
             _ if reason.is_in_experiment() => true,

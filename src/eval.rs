@@ -7,17 +7,30 @@ use crate::user::User;
 use crate::variation::VariationIndex;
 use crate::BucketResult;
 
+/// A struct representing the results of an evaluation on a prerequisite flag.
 pub struct PrerequisiteEvent {
+    /// String representing the [crate::Flag::key] of the original flag being evaluated.
     pub target_flag_key: String,
+    /// The [crate::User] provided during the evaluation process.
     pub user: User,
+    /// The prerequisite [crate::Flag] that was evaluated.
     pub prerequisite_flag: Flag,
+    /// The result of calling [evaluate] on the [PrerequisiteEvent::prerequisite_flag].
     pub prerequisite_result: Detail<FlagValue>,
 }
 
+/// Trait used by [evaluate] to record the result of prerequisite flag evaluations.
 pub trait PrerequisiteEventRecorder {
+    /// Record the results of a prerequisite flag evaluation.
     fn record(&self, event: PrerequisiteEvent);
 }
 
+/// Evaluate a feature flag for the specified user.
+///
+/// The evaluator does not know anything about analytics events; generating any appropriate
+/// analytics events is the responsibility of the caller. The caller can provide an optional
+/// [PrerequisiteEventRecorder] which will be notified if any additional evaluations were done due
+/// to prerequisites.
 pub fn evaluate<'a>(
     store: &'a dyn Store,
     flag: &'a Flag,
@@ -96,14 +109,30 @@ pub fn evaluate<'a>(
     };
 }
 
+/// A Detail instance is returned from [evaluate], combining the result of a flag evaluation with
+/// an explanation of how it was calculated.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Detail<T> {
+    /// The result of the flag evaluation. This will be either one of the flag's variations or None
+    /// if no appropriate fallback value was configured.
     pub value: Option<T>,
+
+    /// The index of the returned value within the flag's list of variations, e.g. 0 for the first
+    /// variation. This is an Option because it is possible for the value to be undefined (there is
+    /// no variation index if the application default value was returned due to an error in
+    /// evaluation) which is different from a value of 0.
     pub variation_index: Option<VariationIndex>,
+
+    /// A [Reason] struct describing the main factor that influenced the flag evaluation value.
     pub reason: Reason,
 }
 
 impl<T> Detail<T> {
+    /// Returns an [Detail] response with a value and variation_index of None.
+    ///
+    /// If a flag does not have an appropriate fallback value, the [Detail::value] and
+    /// [Detail::variation_index] must be None. In each case, the [Detail::reason] will be set to
+    /// the reason provided to this method.
     pub fn empty(reason: Reason) -> Detail<T> {
         Detail {
             value: None,
@@ -112,6 +141,12 @@ impl<T> Detail<T> {
         }
     }
 
+    /// Returns a [Detail] response using the provided default as the value and a variation_index
+    /// of None.
+    ///
+    /// If the SDK variation methods detect some error condition, it will fallback to the user provided
+    /// default value. The provided error will be included as part of the [Detail::reason], and the
+    /// [Detail::variation_index] will be set to None.
     pub fn err_default(error: Error, default: T) -> Detail<T> {
         Detail {
             value: Some(default),
@@ -120,10 +155,13 @@ impl<T> Detail<T> {
         }
     }
 
+    /// Returns a [Detail] response using the provided error as the [Detail::reason].
     pub fn err(error: Error) -> Detail<T> {
         Detail::empty(Reason::Error { error })
     }
 
+    /// Returns a new instance of [Detail] with the provided function `f` applied to
+    /// [Detail::value].
     pub fn map<U, F>(self, f: F) -> Detail<U>
     where
         F: FnOnce(T) -> U,
@@ -135,6 +173,8 @@ impl<T> Detail<T> {
         }
     }
 
+    /// Sets the [Detail::reason] to the provided error if the current [Detail] instance does not
+    /// have a value set.
     pub fn should_have_value(mut self, e: Error) -> Detail<T> {
         if self.value.is_none() {
             self.reason = Reason::Error { error: e };
@@ -142,6 +182,15 @@ impl<T> Detail<T> {
         self
     }
 
+    /// Returns a new instance of [Detail] with the provided function `f` applied to
+    /// [Detail::value] if it exists.
+    ///
+    /// [Detail::value] may or may not be set. If it is not set, this method will return a new
+    /// [Detail] instance with the [Detail::reason] set to the provided [Error] `e`.
+    ///
+    /// If it is set, this method will apply the provided function `f` to the value. If the method
+    /// `f` returns None, this method will return an error [Detail]. See [Detail::err]. Otherwise,
+    /// a [Detail] instance will be returned with the result of the `f` application.
     pub fn try_map<U, F>(self, f: F, e: Error) -> Detail<U>
     where
         F: FnOnce(T) -> Option<U>,
@@ -163,6 +212,10 @@ impl<T> Detail<T> {
         }
     }
 
+    /// Set the [Detail::value] to `default` if it does not exist.
+    ///
+    /// The SDK always wants to return an evaluation result. This method helps ensure that if a
+    /// [Detail::value] is None, we can update it with the provided default.
     pub fn or(mut self, default: T) -> Detail<T> {
         if self.value.is_none() {
             self.value = Some(default);
@@ -172,6 +225,11 @@ impl<T> Detail<T> {
         self
     }
 
+    /// Set the [Detail::value] to `default` if it does not exist.
+    ///
+    /// This method accomplishes the same thing as [Detail::or] but allows the default value to be
+    /// provided through the result of a callback. This helps reduce computation where an
+    /// evaluation default value might be costly to calculate and is likely infrequently used.
     pub fn or_else<F>(mut self, default: F) -> Detail<T>
     where
         F: Fn() -> T,
@@ -195,20 +253,31 @@ pub enum Reason {
     /// RuleMatch indicates that the user matched one of the flag's rules.
     #[serde(rename_all = "camelCase")]
     RuleMatch {
+        /// Zero-based index of the [crate::FlagRule] that was matched.
         rule_index: usize,
         #[serde(skip_serializing_if = "String::is_empty")]
+        /// The id property of the [crate::FlagRule::id] that was matched.
         rule_id: String,
+        /// This optional boolean property is true if the variation was determined by a [crate::Rollout]
+        /// whose kind was [crate::RolloutKind::Experiment] and if the selected [crate::WeightedVariation] did not have an
+        /// untracked property of true. It is false otherwise.
         #[serde(skip_serializing_if = "std::ops::Not::not")]
         in_experiment: bool,
     },
     /// PrerequisiteFailed indicates that the flag was considered off because it had at
     /// least one prerequisite flag that either was off or did not return the desired variation.
     #[serde(rename_all = "camelCase")]
-    PrerequisiteFailed { prerequisite_key: String },
+    PrerequisiteFailed {
+        /// The key of the prerequisite flag that failed.
+        prerequisite_key: String,
+    },
     /// Fallthrough indicates that the flag was on but the user did not match any targets
     /// or rules.
     #[serde(rename_all = "camelCase")]
     Fallthrough {
+        /// This optional boolean property is true if the variation was determined by a [crate::Rollout]
+        /// whose kind was [crate::RolloutKind::Experiment] and if the selected [crate::WeightedVariation] did not have an
+        /// untracked property of true. It is false otherwise.
         #[serde(skip_serializing_if = "std::ops::Not::not")]
         in_experiment: bool,
     },
@@ -216,12 +285,15 @@ pub enum Reason {
     /// exist or due to an unexpected error. In this case the result value will be the default value
     /// that the caller passed to the client.
     Error {
+        /// An error representing the [Reason::Error].
         #[serde(rename = "errorKind")]
         error: Error,
     },
 }
 
 impl Reason {
+    /// This method determines whether or not the provided [Reason] is considered to be part of an
+    /// ongoing experiment.
     pub fn is_in_experiment(&self) -> bool {
         match self {
             Reason::RuleMatch { in_experiment, .. } => *in_experiment,
@@ -231,7 +303,7 @@ impl Reason {
     }
 }
 
-/// Error is returned via a [`Reason::Error`] when the client could not evaluate a flag, and
+/// Error is returned via a [Reason::Error] when the client could not evaluate a flag, and
 /// provides information about why the flag could not be evaluated.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use crate::{user::User, BucketPrefix};
 
+/// A type representing the index into the [crate::Flag]'s variations.
 pub type VariationIndex = usize;
 
 #[derive(Debug, PartialEq)]
@@ -19,10 +20,17 @@ impl From<&VariationIndex> for BucketResult {
     }
 }
 
+/// RolloutKind describes whether a rollout is a simple percentage rollout or represents an
+/// experiment. Experiments have different behaviour for tracking and variation bucketing.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum RolloutKind {
+    /// Represents a simple percentage rollout. This is the default rollout kind, and will be assumed if
+    /// not otherwise specified.
     Rollout,
+
+    /// Represents an experiment. Experiments have different behaviour for tracking and variation
+    /// bucketing.
     Experiment,
 }
 
@@ -32,6 +40,7 @@ impl Default for RolloutKind {
     }
 }
 
+/// Rollout describes how users will be bucketed into variations during a percentage rollout.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Rollout {
@@ -62,23 +71,46 @@ impl Rollout {
     }
 }
 
+/// VariationOrRollout describes either a fixed variation or a percentage rollout.
+///
+/// There is a VariationOrRollout for every [crate::FlagRule], and also one in [crate::eval::Reason::Fallthrough] which is
+/// used if no rules match.
+///
+/// Invariant: one of the variation or rollout must be non-nil.
 // This enum is a bit oddly-shaped because data errors may cause the server to emit rules with neither or both of a
 // variation or rollout, and we need to treat invalid states with grace (i.e. don't throw a 500 on deserialization, and
 // prefer variation if both are present)
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum VariationOrRollout {
-    Variation { variation: VariationIndex },
-    Rollout { rollout: Rollout },
+    /// Represents a fixed variation.
+    Variation {
+        /// The index of the variation to return. It is undefined if no specific variation is defined.
+        variation: VariationIndex,
+    },
+    /// Represents a percentage rollout.
+    Rollout {
+        /// Specifies the rollout definition. See [Rollout].
+        rollout: Rollout,
+    },
+    /// Represents a malformed VariationOrRollout payload. This is done to deal with potential
+    /// data errors that may occur server-side. Generally speaking this should not occur.
     Malformed(serde_json::Value),
 }
 
 pub(crate) type VariationWeight = f32;
 
+/// WeightedVariation describes a fraction of users who will receive a specific variation.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct WeightedVariation {
+    /// The index of the variation to be returned if the user is in this bucket. This is always a
+    /// real variation index; it cannot be undefined.
     pub variation: VariationIndex,
+
+    /// The proportion of users who should go into this bucket, as an integer from 0 to 100000.
     pub weight: VariationWeight,
+
+    /// Untracked means that users allocated to this variation should not have tracking events sent.
     #[serde(default)]
     pub untracked: bool,
 }
@@ -394,7 +426,7 @@ mod consistency_tests {
             },
         };
         let custom = hashmap! {
-          "intAttr".into() => 99_999.into()
+            "intAttr".into() => 99_999.into()
         };
         let user = User::with_key("userKeyD").custom(custom).build();
         asserting!("userKeyD should get variation 1 and not be in the experiment")
@@ -420,7 +452,7 @@ mod consistency_tests {
             },
         };
         let custom = hashmap! {
-          "intAttr".into() => 99_999.into()
+            "intAttr".into() => 99_999.into()
         };
         let user = User::with_key("userKeyD").custom(custom).build();
         asserting!("userKeyD should get variation 1 and be in the experiment")

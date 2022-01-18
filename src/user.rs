@@ -18,14 +18,21 @@ lazy_static! {
         Regex::new(r"^\d+(\.\d+)?(\.\d+)?").unwrap();
 }
 
+/// AttributeValue is an enum representing possible values that can be stored in a user attribute.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
+    /// Used when storing a string value.
     String(String),
+    /// Used when storing an array of AttributeValues.
     Array(Vec<AttributeValue>),
+    /// Used when storing a number.
     Number(f64),
+    /// Used when storing a boolean.
     Bool(bool),
+    /// Used when storing a complex map of values.
     Object(HashMap<String, AttributeValue>),
+    /// Used to represent a null value.
     Null,
 }
 
@@ -102,7 +109,7 @@ where
 }
 
 impl AttributeValue {
-    /// as_str returns None unless self is a String. It will not convert.
+    /// Returns None unless self is a String. It will not convert.
     pub fn as_str(&self) -> Option<&str> {
         match self {
             AttributeValue::String(s) => Some(s),
@@ -110,7 +117,7 @@ impl AttributeValue {
         }
     }
 
-    /// to_f64 returns the wrapped value as a float for numeric types, and None otherwise.
+    /// Returns the wrapped value as a float for numeric types, and None otherwise.
     pub fn to_f64(&self) -> Option<f64> {
         match self {
             AttributeValue::Number(f) => Some(*f),
@@ -118,7 +125,7 @@ impl AttributeValue {
         }
     }
 
-    /// as_bool returns None unless self is a bool. It will not convert.
+    /// Returns None unless self is a bool. It will not convert.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             AttributeValue::Bool(b) => Some(*b),
@@ -126,7 +133,7 @@ impl AttributeValue {
         }
     }
 
-    /// to_datetime will attempt to convert any of the following into a chrono::DateTime in UTC:
+    /// Attempt to convert any of the following into a chrono::DateTime in UTC:
     ///  * RFC3339/ISO8601 timestamp (example: "2016-04-16T17:09:12.759-07:00")
     ///  * Unix epoch milliseconds as number
     /// It will return None if the conversion fails or if no conversion is possible.
@@ -149,7 +156,8 @@ impl AttributeValue {
         }
     }
 
-    /// as_semver will attempt to parse a string attribute into a semver version.
+    /// Attempt to parse a string attribute into a semver version.
+    ///
     /// It will return None if it cannot parse it, or for non-string attributes.
     pub fn as_semver(&self) -> Option<semver::Version> {
         let version_str = self.as_str()?;
@@ -176,6 +184,7 @@ impl AttributeValue {
         semver::Version::parse(&transformed_version_str).ok()
     }
 
+    /// Find the AttributeValue based off the provided predicate `p`.
     pub fn find<P>(&self, p: P) -> Option<&AttributeValue>
     where
         P: Fn(&AttributeValue) -> bool,
@@ -215,6 +224,20 @@ impl AttributeValue {
     }
 }
 
+/// A User contains specific attributes of a user browsing your site. The only mandatory property is the Key,
+/// which must uniquely identify each user. For authenticated users, this may be a username or e-mail address.
+/// For anonymous users, this could be an IP address or session ID.
+///
+/// Besides the mandatory key, User supports two kinds of optional attributes: interpreted attributes (e.g.
+/// IP and Country) and custom attributes.  LaunchDarkly can parse interpreted attributes and attach meaning
+/// to them. For example, from an IP address, LaunchDarkly can do a geo IP lookup and determine the user's
+/// country.
+///
+/// Custom attributes are not parsed by LaunchDarkly. They can be used in custom rules-- for example, a custom
+/// attribute such as "customer_ranking" can be used to launch a feature to the top 10% of users on a site.
+///
+/// User fields are immutable and can be accessed only via getter methods. To construct a User, use
+/// the [UserBuilder] by calling the [User::with_key].
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct User {
     #[serde(rename = "key")]
@@ -251,6 +274,7 @@ where
     Ok(opt.unwrap_or_default())
 }
 
+/// An error type used user attribute type failures.
 #[derive(Debug)]
 pub struct TypeError {
     key: &'static str,
@@ -310,41 +334,70 @@ impl<'a> BucketPrefix<'a> {
 }
 
 impl User {
+    /// Create a new [UserBuilder], seeding it with the provided user key.
     pub fn with_key(key: impl Into<String>) -> UserBuilder {
         UserBuilder::new(key)
     }
 
+    /// Returns the key of the user.
     pub fn key(&self) -> &str {
         &self._key
     }
+
+    /// Returns the secondary key of the user, if any.
+    ///
+    /// This affects feature flag targeting
+    /// (<https://docs.launchdarkly.com/docs/targeting-users#section-targeting-rules-based-on-user-attributes>)
+    /// as follows: if you have chosen to bucket users by a specific attribute, the secondary key
+    /// (if set) is used to further distinguish between users who are otherwise identical according
+    /// to that attribute.
     pub fn secondary(&self) -> Option<&str> {
         self._secondary.as_deref()
     }
+
+    /// Returns the ip of the user, if any.
     pub fn ip(&self) -> Option<&str> {
         self._ip.as_deref()
     }
+
+    /// Returns the country of the user, if any.
     pub fn country(&self) -> Option<&str> {
         self._country.as_deref()
     }
+
+    /// Returns the email of the user, if any.
     pub fn email(&self) -> Option<&str> {
         self._email.as_deref()
     }
+
+    /// Returns the first name of the user, if any.
     pub fn first_name(&self) -> Option<&str> {
         self._first_name.as_deref()
     }
+
+    /// Returns the last name of the user, if any.
     pub fn last_name(&self) -> Option<&str> {
         self._last_name.as_deref()
     }
+
+    /// Returns the avatar of the user, if any.
     pub fn avatar(&self) -> Option<&str> {
         self._avatar.as_deref()
     }
+
+    /// Returns the name of the user, if any.
     pub fn name(&self) -> Option<&str> {
         self._name.as_deref()
     }
+
+    /// Returns the anonymous attribute of the user.
+    ///
+    /// If a user is anonymous, the user key will not appear on your LaunchDarkly dashboard.
     pub fn anonymous(&self) -> Option<bool> {
         self._anonymous
     }
 
+    /// Return the value of the attribute named `attr`.
     pub fn value_of(&self, attr: &str) -> Option<AttributeValue> {
         match attr {
             "key" => Some(AttributeValue::String(self._key.clone())),
@@ -361,6 +414,10 @@ impl User {
         }
     }
 
+    /// Set the attributed named `key` to the value `value`.
+    ///
+    /// If there is a type conversion issue when setting the attribute, return an error of type
+    /// [TypeError].
     pub fn attribute<T: Into<AttributeValue>>(
         &mut self,
         key: &str,
@@ -481,6 +538,7 @@ impl User {
     }
 }
 
+/// Contains methods for configuring a user.
 pub struct UserBuilder {
     key: String,
     secondary: Option<String>,
@@ -496,6 +554,7 @@ pub struct UserBuilder {
 }
 
 impl UserBuilder {
+    /// Create a new user builder, setting the user key value to `key`.
     pub fn new(key: impl Into<String>) -> Self {
         Self {
             key: key.into(),
@@ -512,52 +571,67 @@ impl UserBuilder {
         }
     }
 
+    /// Set the secondary attribute for this builder instance.
     pub fn secondary(&mut self, secondary: impl Into<String>) -> &Self {
         self.secondary = Some(secondary.into());
         self
     }
+
+    /// Set the ip attribute for this builder instance.
     pub fn ip(&mut self, ip: impl Into<String>) -> &Self {
         self.ip = Some(ip.into());
         self
     }
+
+    /// Set the country attribute for this builder instance.
     pub fn country(&mut self, country: impl Into<String>) -> &Self {
         self.country = Some(country.into());
         self
     }
 
+    /// Set the email attribute for this builder instance.
     pub fn email(&mut self, email: impl Into<String>) -> &Self {
         self.email = Some(email.into());
         self
     }
 
+    /// Set the first name attribute for this builder instance.
     pub fn first_name(&mut self, first_name: impl Into<String>) -> &Self {
         self.first_name = Some(first_name.into());
         self
     }
+
+    /// Set the last name attribute for this builder instance.
     pub fn last_name(&mut self, last_name: impl Into<String>) -> &Self {
         self.last_name = Some(last_name.into());
         self
     }
+
+    /// Set the avatar attribute for this builder instance.
     pub fn avatar(&mut self, avatar: impl Into<String>) -> &Self {
         self.avatar = Some(avatar.into());
         self
     }
 
+    /// Set the name attribute for this builder instance.
     pub fn name(&mut self, name: impl Into<String>) -> &Self {
         self.name = Some(name.into());
         self
     }
 
+    /// Set the anonymous attribute for this builder instance.
     pub fn anonymous(&mut self, anonymous: bool) -> &Self {
         self.anonymous = Some(anonymous);
         self
     }
 
+    /// Set the custom attributes for this builder instance.
     pub fn custom(&mut self, custom: HashMap<String, AttributeValue>) -> &Self {
         self.custom.extend(custom);
         self
     }
 
+    /// Create a new [User] instance.
     pub fn build(&self) -> User {
         User {
             _key: self.key.clone(),

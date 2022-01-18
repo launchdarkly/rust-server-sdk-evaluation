@@ -5,21 +5,34 @@ use crate::user::User;
 use crate::variation::VariationWeight;
 use crate::BucketPrefix;
 
+/// Segment describes a group of users based on user keys and/or matching rules.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
+    /// The unique key of the user segment.
     pub key: String,
 
+    /// A list of user keys that are always matched by this segment.
     pub included: Vec<String>,
+    /// A list of user keys that are never matched by this segment, unless the key is also in
+    /// included.
     pub excluded: Vec<String>,
     rules: Vec<SegmentRule>,
     salt: String,
 
+    /// Unbounded is true if this is a segment whose included list is stored separately and is not limited in size.
+    /// Currently, the server-side Rust SDK cannot access the user list for this kind of segment; it only works when
+    /// flags are being evaluated within the LaunchDarkly service.
+    ///
+    /// The name is historical: "unbounded segments" was an earlier name for the product feature that is currently
+    /// known as "big segments". If unbounded is true, this is a big segment.
     #[serde(default)]
     pub unbounded: bool,
     #[serde(default)]
     generation: Option<i64>,
 
+    /// An integer that is incremented by LaunchDarkly every time the configuration of the segment
+    /// is changed.
     pub version: u64,
 }
 
@@ -32,7 +45,10 @@ struct SegmentRule {
 }
 
 impl Segment {
-    // TODO(ch108586) segment explanations
+    /// Determines if the provided User is a part of this segment.
+    ///
+    /// Inclusion can be determined by specifically listing the user key in the segment, or by
+    /// matching any of the rules configured for this segment.
     pub fn contains(&self, user: &User) -> bool {
         let user_key = user.key().to_string();
 
@@ -52,6 +68,10 @@ impl Segment {
         false
     }
 
+    /// Retrieve the id representing this big segment.
+    ///
+    /// This id will either be the segment key if the segment isn't a big segment, or it will be a
+    /// combination of the segment key and the segment generation id.
     pub fn unbounded_segment_id(&self) -> String {
         match self.generation {
             None | Some(0) => self.key.clone(),
@@ -61,6 +81,9 @@ impl Segment {
 }
 
 impl SegmentRule {
+    /// Determines if a user matches the provided segment rule.
+    ///
+    /// A user will match if all segment clauses match; otherwise, this method returns false.
     pub fn matches(&self, user: &User, key: &str, salt: &str) -> bool {
         // rules match if _all_ of their clauses do
         for clause in &self.clauses {

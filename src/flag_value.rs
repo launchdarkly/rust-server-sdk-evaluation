@@ -3,12 +3,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::f64_to_i64_safe;
 
+/// FlagValue represents any of the data types supported by JSON, all of which can be used for a
+/// LaunchDarkly feature flag variation or a custom user attribute.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FlagValue {
+    /// Used when the value is a boolean.
     Bool(bool),
+    /// Used when the value is a string.
     Str(String),
+    /// Used when the value is a number.
     Number(f64),
+    /// Used when the value is an arbitrary JSON value.
     Json(serde_json::Value),
 }
 
@@ -56,6 +62,8 @@ impl From<serde_json::Value> for FlagValue {
 }
 
 impl FlagValue {
+    /// Attempts to convert the FlagValue into a boolean representation, returning None if the
+    /// conversion is invalid.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             FlagValue::Bool(b) => Some(*b),
@@ -66,6 +74,8 @@ impl FlagValue {
         }
     }
 
+    /// Attempts to convert the FlagValue into a string representation, returning None if the
+    /// conversion is invalid.
     pub fn as_string(&self) -> Option<String> {
         match self {
             FlagValue::Str(s) => Some(s.clone()),
@@ -76,6 +86,8 @@ impl FlagValue {
         }
     }
 
+    /// Attempts to convert the FlagValue into a float representation, returning None if the
+    /// conversion is invalid.
     pub fn as_float(&self) -> Option<f64> {
         match self {
             FlagValue::Number(f) => Some(*f),
@@ -86,6 +98,8 @@ impl FlagValue {
         }
     }
 
+    /// Attempts to convert the FlagValue into a integer representation, returning None if the
+    /// conversion is invalid.
     pub fn as_int(&self) -> Option<i64> {
         match self {
             FlagValue::Number(f) => f64_to_i64_safe(*f),
@@ -96,6 +110,8 @@ impl FlagValue {
         }
     }
 
+    /// Attempts to convert the FlagValue into an arbitrary JSON representation, returning None if the
+    /// conversion is invalid.
     pub fn as_json(&self) -> Option<serde_json::Value> {
         use serde_json::Value;
         match self {

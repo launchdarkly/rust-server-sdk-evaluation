@@ -2,9 +2,23 @@
 
 [![Circle CI](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation-private.svg?style=shield&circle-token=4cd2109b5c3d00ecd0aa337071b9bd314d195b11)](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation)
 
-## Overview
+## LaunchDarkly overview
+
+[LaunchDarkly](https://www.launchdarkly.com) is a feature management platform that serves over 100 billion feature flags daily to help teams build better software, faster. [Get started](https://docs.launchdarkly.com/home/getting-started) using LaunchDarkly today!
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/launchdarkly.svg?style=social&label=Follow&maxAge=2592000)](https://twitter.com/intent/follow?screen_name=launchdarkly)
+
+## Getting started
 
 This repository contains the internal feature flag evaluation logic and data model used by the [LaunchDarkly Rust SDK](https://github.com/launchdarkly/rust-server-sdk). It is packaged separately because it is also used by internal LaunchDarkly components. Applications using the LaunchDarkly Rust SDK should not need to reference this package directly.
+
+## Learn more
+
+Check out our [documentation](http://docs.launchdarkly.com) for in-depth instructions on configuring and using LaunchDarkly. You can also head straight to the [complete reference guide for the Rust SDK](https://docs.launchdarkly.com/sdk/server-side/rust), or the [generated API documentation](https://docs.rs/launchdarkly-server-sdk-evaluation) for this project.
+
+## Contributing
+
+We encourage pull requests and other contributions from the community. Check out our [contributing guidelines](CONTRIBUTING.md) for instructions on how to contribute to this SDK.
 
 ## About LaunchDarkly
 
@@ -18,4 +32,4 @@ This repository contains the internal feature flag evaluation logic and data mod
     * [launchdarkly.com](https://www.launchdarkly.com/ "LaunchDarkly Main Website") for more information
     * [docs.launchdarkly.com](https://docs.launchdarkly.com/  "LaunchDarkly Documentation") for our documentation and SDK reference guides
     * [apidocs.launchdarkly.com](https://apidocs.launchdarkly.com/  "LaunchDarkly API Documentation") for our API documentation
-    * [blog.launchdarkly.com](https://blog.launchdarkly.com/  "LaunchDarkly Blog Documentation") for the latest product updates
+    * [launchdarkly.com/blog](https://launchdarkly.com/blog/  "LaunchDarkly Blog Documentation") for the latest product updates
