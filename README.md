@@ -1,6 +1,8 @@
 # LaunchDarkly Rust SDK Evaluation Engine
 
-[![Circle CI](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation-private.svg?style=shield&circle-token=4cd2109b5c3d00ecd0aa337071b9bd314d195b11)](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation)
+[![Circle CI](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation.svg?style=shield)](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation)
+
+*This version of the evaluation engine is a **beta** version and should not be considered ready for production use while this message is visible.*
 
 ## LaunchDarkly overview
 
