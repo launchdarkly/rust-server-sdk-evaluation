@@ -1,0 +1,13 @@
+version: 2
+
+repo:
+  public: rust-server-sdk-evaluation
+  private: rust-server-sdk-evaluation-private
+
+publications:
+  - url: https://docs.rs/launchdarkly-server-sdk-evaluation
+    description: crates.io
+
+jobs:
+  - template:
+      name: rust
