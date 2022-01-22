@@ -191,13 +191,13 @@ impl<T> Detail<T> {
     /// If it is set, this method will apply the provided function `f` to the value. If the method
     /// `f` returns None, this method will return an error [Detail]. See [Detail::err]. Otherwise,
     /// a [Detail] instance will be returned with the result of the `f` application.
-    pub fn try_map<U, F>(self, f: F, e: Error) -> Detail<U>
+    pub fn try_map<U, F>(self, f: F, default: U, e: Error) -> Detail<U>
     where
         F: FnOnce(T) -> Option<U>,
     {
         if self.value.is_none() {
             return Detail {
-                value: None,
+                value: Some(default),
                 variation_index: self.variation_index,
                 reason: self.reason,
             };
@@ -208,7 +208,7 @@ impl<T> Detail<T> {
                 variation_index: self.variation_index,
                 reason: self.reason,
             },
-            None => Detail::err(e),
+            None => Detail::err_default(e, default),
         }
     }
 
