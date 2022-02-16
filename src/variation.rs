@@ -3,7 +3,7 @@ use serde::Deserialize;
 use crate::{user::User, BucketPrefix};
 
 /// A type representing the index into the [crate::Flag]'s variations.
-pub type VariationIndex = usize;
+pub type VariationIndex = isize;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct BucketResult {

@@ -1,5 +1,7 @@
+use std::convert::TryFrom;
 use std::fmt;
 
+use log::warn;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 
@@ -182,9 +184,20 @@ pub struct ClientSideAvailability {
 impl Flag {
     /// Generate a [crate::Detail] response with the given variation and reason.
     pub fn variation(&self, index: VariationIndex, reason: Reason) -> Detail<&FlagValue> {
+        let (value, variation_index) = match usize::try_from(index) {
+            Ok(u) => (self.variations.get(u), Some(index)),
+            Err(e) => {
+                warn!(
+                    "Flag variation index could not be converted to usize. {}",
+                    e
+                );
+                (None, None)
+            }
+        };
+
         Detail {
-            value: self.variations.get(index),
-            variation_index: Some(index),
+            value,
+            variation_index,
             reason,
         }
         .should_have_value(eval::Error::MalformedFlag)

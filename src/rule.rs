@@ -62,6 +62,8 @@ enum Op {
     SemVerEqual,
     SemVerGreaterThan,
     SemVerLessThan,
+    #[serde(other)]
+    Unknown,
 }
 
 impl Clause {
@@ -188,6 +190,7 @@ impl Op {
             Op::SemVerEqual => semver_op(lhs, rhs, |l, r| l == r),
             Op::SemVerLessThan => semver_op(lhs, rhs, |l, r| l < r),
             Op::SemVerGreaterThan => semver_op(lhs, rhs, |l, r| l > r),
+            Op::Unknown => false,
         }
     }
 }
@@ -799,7 +802,7 @@ mod tests {
         let clause = Clause {
             attribute: "attr".to_string(),
             negate: false,
-            op: op,
+            op,
             values: match clause_value.into() {
                 AttributeValue::Array(vec) => vec,
                 other => vec![other],
