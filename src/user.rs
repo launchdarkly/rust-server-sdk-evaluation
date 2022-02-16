@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{self, TimeZone, Utc};
 use lazy_static::lazy_static;
 use log::warn;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha1::Sha1;
 
 use crate::util::f64_to_i64_safe;
@@ -224,6 +225,77 @@ impl AttributeValue {
     }
 }
 
+/// When sending [User] information to LaunchDarkly, we may want to redact select user properties.
+///
+/// This struct handles the serialization rules for this redaction process. See
+/// <https://docs.launchdarkly.com/sdk/features/user-config#private-user-attributes-in-the-rust-sdk>
+/// for more information.
+pub struct UserAttributes<'dispatcher> {
+    user: User,
+    all_attributes_private: bool,
+    global_private_attributes: &'dispatcher HashSet<String>,
+}
+
+impl<'dispatcher> UserAttributes<'dispatcher> {
+    /// Construct a new [UserAttributes] struct with the given parameters.
+    pub fn from_user(
+        user: User,
+        all_attributes_private: bool,
+        private_attributes: &'dispatcher HashSet<String>,
+    ) -> Self {
+        Self {
+            user,
+            all_attributes_private,
+            global_private_attributes: private_attributes,
+        }
+    }
+
+    fn is_private_attribute(&self, attr: &str) -> bool {
+        self.all_attributes_private
+            || self.global_private_attributes.contains(attr)
+            || self.user.is_private_attribute(attr)
+    }
+}
+
+impl<'dispatcher> Serialize for UserAttributes<'dispatcher> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut fields: Vec<String> = vec![
+            "key".into(),
+            "secondary".into(),
+            "ip".into(),
+            "country".into(),
+            "email".into(),
+            "firstName".into(),
+            "lastName".into(),
+            "avatar".into(),
+            "name".into(),
+            "anonymous".into(),
+        ];
+        fields.extend(self.user.custom.keys().cloned());
+
+        let mut private_attribute_names = Vec::new();
+        let mut serialize_map = serializer.serialize_map(None)?;
+        for field in fields {
+            match self.user.value_of(&field) {
+                None => (),
+                Some(_) if field != "key" && self.is_private_attribute(&field) => {
+                    private_attribute_names.push(field)
+                }
+                Some(attr_value) => serialize_map.serialize_entry(&field, &attr_value)?,
+            }
+        }
+
+        if !private_attribute_names.is_empty() {
+            serialize_map.serialize_entry("privateAttrs", &private_attribute_names)?;
+        }
+
+        serialize_map.end()
+    }
+}
+
 /// A User contains specific attributes of a user browsing your site. The only mandatory property is the Key,
 /// which must uniquely identify each user. For authenticated users, this may be a username or e-mail address.
 /// For anonymous users, this could be an IP address or session ID.
@@ -263,6 +335,9 @@ pub struct User {
 
     #[serde(default, deserialize_with = "deserialize_null_default")]
     custom: HashMap<String, AttributeValue>,
+
+    #[serde(rename = "privateAttributeNames", skip_serializing, default)]
+    private_attributes: HashSet<String>,
 }
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -414,6 +489,10 @@ impl User {
         }
     }
 
+    fn is_private_attribute(&self, attr: &str) -> bool {
+        self.private_attributes.contains(attr)
+    }
+
     /// Set the attributed named `key` to the value `value`.
     ///
     /// If there is a type conversion issue when setting the attribute, return an error of type
@@ -551,6 +630,7 @@ pub struct UserBuilder {
     name: Option<String>,
     anonymous: Option<bool>,
     custom: HashMap<String, AttributeValue>,
+    private_attributes: HashSet<String>,
 }
 
 impl UserBuilder {
@@ -568,66 +648,74 @@ impl UserBuilder {
             name: None,
             anonymous: None,
             custom: HashMap::with_capacity(USER_CUSTOM_STARTING_CAPACITY),
+            // The same capacity as the custom container + the 9 built-in fields we might hide
+            private_attributes: HashSet::with_capacity(USER_CUSTOM_STARTING_CAPACITY + 9),
         }
     }
 
     /// Set the secondary attribute for this builder instance.
-    pub fn secondary(&mut self, secondary: impl Into<String>) -> &Self {
+    pub fn secondary(&mut self, secondary: impl Into<String>) -> &mut Self {
         self.secondary = Some(secondary.into());
         self
     }
 
     /// Set the ip attribute for this builder instance.
-    pub fn ip(&mut self, ip: impl Into<String>) -> &Self {
+    pub fn ip(&mut self, ip: impl Into<String>) -> &mut Self {
         self.ip = Some(ip.into());
         self
     }
 
     /// Set the country attribute for this builder instance.
-    pub fn country(&mut self, country: impl Into<String>) -> &Self {
+    pub fn country(&mut self, country: impl Into<String>) -> &mut Self {
         self.country = Some(country.into());
         self
     }
 
     /// Set the email attribute for this builder instance.
-    pub fn email(&mut self, email: impl Into<String>) -> &Self {
+    pub fn email(&mut self, email: impl Into<String>) -> &mut Self {
         self.email = Some(email.into());
         self
     }
 
     /// Set the first name attribute for this builder instance.
-    pub fn first_name(&mut self, first_name: impl Into<String>) -> &Self {
+    pub fn first_name(&mut self, first_name: impl Into<String>) -> &mut Self {
         self.first_name = Some(first_name.into());
         self
     }
 
     /// Set the last name attribute for this builder instance.
-    pub fn last_name(&mut self, last_name: impl Into<String>) -> &Self {
+    pub fn last_name(&mut self, last_name: impl Into<String>) -> &mut Self {
         self.last_name = Some(last_name.into());
         self
     }
 
     /// Set the avatar attribute for this builder instance.
-    pub fn avatar(&mut self, avatar: impl Into<String>) -> &Self {
+    pub fn avatar(&mut self, avatar: impl Into<String>) -> &mut Self {
         self.avatar = Some(avatar.into());
         self
     }
 
     /// Set the name attribute for this builder instance.
-    pub fn name(&mut self, name: impl Into<String>) -> &Self {
+    pub fn name(&mut self, name: impl Into<String>) -> &mut Self {
         self.name = Some(name.into());
         self
     }
 
     /// Set the anonymous attribute for this builder instance.
-    pub fn anonymous(&mut self, anonymous: bool) -> &Self {
+    pub fn anonymous(&mut self, anonymous: bool) -> &mut Self {
         self.anonymous = Some(anonymous);
         self
     }
 
     /// Set the custom attributes for this builder instance.
-    pub fn custom(&mut self, custom: HashMap<String, AttributeValue>) -> &Self {
+    pub fn custom(&mut self, custom: HashMap<String, AttributeValue>) -> &mut Self {
         self.custom.extend(custom);
+        self
+    }
+
+    /// Set a list of attributes that are considered private for this user only.
+    pub fn private_attributes(&mut self, private_attributes: HashSet<String>) -> &mut Self {
+        self.private_attributes = private_attributes;
         self
     }
 
@@ -645,6 +733,7 @@ impl UserBuilder {
             _name: self.name.clone(),
             _anonymous: self.anonymous,
             custom: self.custom.clone(),
+            private_attributes: self.private_attributes.clone(),
         }
     }
 }
@@ -653,8 +742,182 @@ impl UserBuilder {
 mod tests {
     use super::*;
 
-    use maplit::hashmap;
+    use maplit::{hashmap, hashset};
     use spectral::prelude::*;
+
+    const BUCKET_TOLERANCE: f32 = 0.0000001;
+
+    #[test]
+    fn test_user_attributes_serialize_correctly() {
+        let user = User::with_key("userKeyA")
+            .first_name("First")
+            .last_name("Last")
+            .build();
+        let private_attributes = HashSet::new();
+        let attributes = UserAttributes::from_user(user, false, &private_attributes);
+
+        let expected = r#"
+{
+  "key": "userKeyA",
+  "firstName": "First",
+  "lastName": "Last"
+}
+        "#
+        .trim();
+
+        assert_that!(serde_json::to_string_pretty(&attributes))
+            .is_ok_containing(expected.to_string());
+    }
+
+    #[test]
+    fn test_user_attributes_ignore_all_nonkey_attributes() {
+        let user = User::with_key("userKeyA")
+            .first_name("First")
+            .last_name("Last")
+            .custom(hashmap! { "customKey".into() => "value".into() })
+            .build();
+        let private_attributes = HashSet::new();
+        let attributes = UserAttributes::from_user(user, true, &private_attributes);
+
+        let expected = r#"
+{
+  "key": "userKeyA",
+  "privateAttrs": [
+    "firstName",
+    "lastName",
+    "customKey"
+  ]
+}
+        "#
+        .trim();
+
+        assert_that!(serde_json::to_string_pretty(&attributes))
+            .is_ok_containing(expected.to_string());
+    }
+
+    #[test]
+    fn test_user_attributes_ignores_selected_attributes() {
+        let user = User::with_key("userKeyA")
+            .first_name("First")
+            .last_name("Last")
+            .custom(hashmap! { "customKey".into() => "value".into() })
+            .build();
+        let private_attributes = hashset! { "firstName".into(), "customKey".into() };
+        let attributes = UserAttributes::from_user(user, false, &private_attributes);
+
+        let expected = r#"
+{
+  "key": "userKeyA",
+  "lastName": "Last",
+  "privateAttrs": [
+    "firstName",
+    "customKey"
+  ]
+}
+        "#
+        .trim();
+
+        assert_that!(serde_json::to_string_pretty(&attributes))
+            .is_ok_containing(expected.to_string());
+    }
+
+    #[test]
+    fn test_user_attributes_ignores_user_specified_attributes() {
+        let user = User::with_key("userKeyA")
+            .first_name("First")
+            .last_name("Last")
+            .custom(hashmap! { "customKey".into() => "value".into() })
+            .private_attributes(hashset! { "firstName".into(), "customKey".into() })
+            .build();
+        let private_attributes = HashSet::new();
+        let attributes = UserAttributes::from_user(user, false, &private_attributes);
+
+        let expected = r#"
+{
+  "key": "userKeyA",
+  "lastName": "Last",
+  "privateAttrs": [
+    "firstName",
+    "customKey"
+  ]
+}
+        "#
+        .trim();
+
+        assert_that!(serde_json::to_string_pretty(&attributes))
+            .is_ok_containing(expected.to_string());
+    }
+
+    #[test]
+    fn bucket_user_by_key() {
+        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
+
+        let user = User::with_key("userKeyA").build();
+        let bucket = user.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.42157587, BUCKET_TOLERANCE);
+
+        let user = User::with_key("userKeyB").build();
+        let bucket = user.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.6708485, BUCKET_TOLERANCE);
+
+        let user = User::with_key("userKeyC").build();
+        let bucket = user.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.10343106, BUCKET_TOLERANCE);
+    }
+
+    #[test]
+    fn bucket_user_by_key_with_seed() {
+        const PREFIX: BucketPrefix = BucketPrefix::Seed(61);
+
+        let user_a = User::with_key("userKeyA").build();
+        let bucket = user_a.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.09801207, BUCKET_TOLERANCE);
+
+        let user_b = User::with_key("userKeyB").build();
+        let bucket = user_b.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.14483777, BUCKET_TOLERANCE);
+
+        let user_c = User::with_key("userKeyC").build();
+        let bucket = user_c.bucket(None, PREFIX);
+        assert_that!(bucket).is_close_to(0.9242641, BUCKET_TOLERANCE);
+
+        // changing seed produces different bucket value
+        let bucket = user_a.bucket(None, BucketPrefix::Seed(60));
+        assert_that!(bucket).is_close_to(0.7008816, BUCKET_TOLERANCE)
+    }
+
+    #[test]
+    fn bucket_user_by_int_attr() {
+        const USER_KEY: &str = "userKeyD";
+        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
+
+        let custom = hashmap! {
+            "intAttr".into() => 33333.into(),
+        };
+        let user = User::with_key(USER_KEY).custom(custom).build();
+        let bucket = user.bucket(Some("intAttr"), PREFIX);
+        assert_that!(bucket).is_close_to(0.54771423, BUCKET_TOLERANCE);
+
+        let custom = hashmap! {
+        "stringAttr".into() => "33333".into(),
+        };
+        let user = User::with_key(USER_KEY).custom(custom).build();
+        let bucket2 = user.bucket(Some("stringAttr"), PREFIX);
+        assert_that!(bucket).is_close_to(bucket2, BUCKET_TOLERANCE);
+    }
+
+    #[test]
+    fn bucket_user_by_float_attr_not_allowed() {
+        const USER_KEY: &str = "userKeyE";
+        const PREFIX: BucketPrefix = BucketPrefix::KeyAndSalt("hashKey", "saltyA");
+
+        let custom = hashmap! {
+            "floatAttr".into() => 999.999.into(),
+        };
+        let user = User::with_key(USER_KEY).custom(custom).build();
+        let bucket = user.bucket(Some("floatAttr"), PREFIX);
+        assert_that!(bucket).is_close_to(0.0, BUCKET_TOLERANCE);
+    }
 
     #[test]
     fn parse_user_rejects_missing_key() {
