@@ -6,7 +6,7 @@ use log::warn;
 use regex::Regex;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sha1::Sha1;
+use sha1::{Digest, Sha1};
 
 use crate::util::f64_to_i64_safe;
 
@@ -608,7 +608,9 @@ impl User {
         prefix.write_hash(&mut hash);
         hash.update(b".");
         hash.update(id.as_bytes());
-        let hexhash = hash.hexdigest();
+
+        let digest = hash.finalize();
+        let hexhash = base16ct::lower::encode_string(&digest);
 
         let hexhash_15 = &hexhash[..15]; // yes, 15 chars, not 16
         let numhash = i64::from_str_radix(hexhash_15, 16).unwrap();
