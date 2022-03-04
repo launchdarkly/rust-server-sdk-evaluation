@@ -262,7 +262,7 @@ impl<'dispatcher> Serialize for UserAttributes<'dispatcher> {
     where
         S: Serializer,
     {
-        let mut fields: Vec<String> = vec![
+        let fields: Vec<String> = vec![
             "key".into(),
             "secondary".into(),
             "ip".into(),
@@ -274,7 +274,6 @@ impl<'dispatcher> Serialize for UserAttributes<'dispatcher> {
             "name".into(),
             "anonymous".into(),
         ];
-        fields.extend(self.user.custom.keys().cloned());
 
         let mut private_attribute_names = Vec::new();
         let mut serialize_map = serializer.serialize_map(None)?;
@@ -288,8 +287,21 @@ impl<'dispatcher> Serialize for UserAttributes<'dispatcher> {
             }
         }
 
+        let mut custom: HashMap<String, AttributeValue> = HashMap::new();
+        for (key, value) in self.user.custom.clone().into_iter() {
+            if self.is_private_attribute(&key) {
+                private_attribute_names.push(key)
+            } else {
+                custom.insert(key, value);
+            }
+        }
+
         if !private_attribute_names.is_empty() {
             serialize_map.serialize_entry("privateAttrs", &private_attribute_names)?;
+        }
+
+        if !custom.is_empty() {
+            serialize_map.serialize_entry("custom", &custom)?;
         }
 
         serialize_map.end()
@@ -754,6 +766,7 @@ mod tests {
         let user = User::with_key("userKeyA")
             .first_name("First")
             .last_name("Last")
+            .custom(hashmap! { "customKey".into() => "value".into() })
             .build();
         let private_attributes = HashSet::new();
         let attributes = UserAttributes::from_user(user, false, &private_attributes);
@@ -762,7 +775,10 @@ mod tests {
 {
   "key": "userKeyA",
   "firstName": "First",
-  "lastName": "Last"
+  "lastName": "Last",
+  "custom": {
+    "customKey": "value"
+  }
 }
         "#
         .trim();

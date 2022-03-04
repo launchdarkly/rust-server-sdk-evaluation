@@ -1,7 +1,6 @@
 use chrono::{self, Utc};
 use log::{error, warn};
 use regex::Regex;
-use semver::VersionReq;
 use serde::Deserialize;
 
 use crate::store::Store;
@@ -188,9 +187,9 @@ impl Op {
                 false
             }
 
-            Op::SemVerEqual => semver_op(lhs, rhs, "="),
-            Op::SemVerLessThan => semver_op(lhs, rhs, "<"),
-            Op::SemVerGreaterThan => semver_op(lhs, rhs, ">"),
+            Op::SemVerEqual => semver_op(lhs, rhs, |l, r| l == r),
+            Op::SemVerLessThan => semver_op(lhs, rhs, |l, r| l < r),
+            Op::SemVerGreaterThan => semver_op(lhs, rhs, |l, r| l > r),
             Op::Unknown => false,
         }
     }
@@ -221,12 +220,13 @@ fn time_op<F: Fn(chrono::DateTime<Utc>, chrono::DateTime<Utc>) -> bool>(
     }
 }
 
-fn semver_op(lhs: &AttributeValue, rhs: &AttributeValue, operator: &str) -> bool {
+fn semver_op<F: Fn(semver::Version, semver::Version) -> bool>(
+    lhs: &AttributeValue,
+    rhs: &AttributeValue,
+    f: F,
+) -> bool {
     match (lhs.as_semver(), rhs.as_semver()) {
-        (Some(l), Some(r)) => match VersionReq::parse(&format!("{}{}", operator, r)) {
-            Ok(requirement) => requirement.matches(&l),
-            _ => false,
-        },
+        (Some(l), Some(r)) => f(l, r),
         _ => false,
     }
 }
