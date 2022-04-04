@@ -1,12 +1,12 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::rule::Clause;
 use crate::user::User;
 use crate::variation::VariationWeight;
-use crate::BucketPrefix;
+use crate::{BucketPrefix, Versioned};
 
 /// Segment describes a group of users based on user keys and/or matching rules.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
     /// The unique key of the user segment.
@@ -36,7 +36,13 @@ pub struct Segment {
     pub version: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+impl Versioned for Segment {
+    fn version(&self) -> u64 {
+        self.version
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct SegmentRule {
     clauses: Vec<Clause>,
@@ -116,12 +122,12 @@ mod tests {
     // Treat a Segment as a Store containing only itself
     type TestStore = Segment;
     impl Store for TestStore {
-        fn flag(&self, _flag_key: &str) -> Option<&Flag> {
+        fn flag(&self, _flag_key: &str) -> Option<Flag> {
             None
         }
-        fn segment(&self, segment_key: &str) -> Option<&Segment> {
+        fn segment(&self, segment_key: &str) -> Option<Segment> {
             if self.key == segment_key {
-                Some(self as &Segment)
+                Some(self.clone())
             } else {
                 None
             }

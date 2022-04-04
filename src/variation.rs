@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{user::User, BucketPrefix};
 
@@ -22,7 +22,7 @@ impl From<&VariationIndex> for BucketResult {
 
 /// RolloutKind describes whether a rollout is a simple percentage rollout or represents an
 /// experiment. Experiments have different behaviour for tracking and variation bucketing.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum RolloutKind {
     /// Represents a simple percentage rollout. This is the default rollout kind, and will be assumed if
@@ -41,7 +41,7 @@ impl Default for RolloutKind {
 }
 
 /// Rollout describes how users will be bucketed into variations during a percentage rollout.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Rollout {
     #[serde(default)]
@@ -80,7 +80,7 @@ impl Rollout {
 // This enum is a bit oddly-shaped because data errors may cause the server to emit rules with neither or both of a
 // variation or rollout, and we need to treat invalid states with grace (i.e. don't throw a 500 on deserialization, and
 // prefer variation if both are present)
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum VariationOrRollout {
     /// Represents a fixed variation.
@@ -101,7 +101,7 @@ pub enum VariationOrRollout {
 pub(crate) type VariationWeight = f32;
 
 /// WeightedVariation describes a fraction of users who will receive a specific variation.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WeightedVariation {
     /// The index of the variation to be returned if the user is in this bucket. This is always a
     /// real variation index; it cannot be undefined.

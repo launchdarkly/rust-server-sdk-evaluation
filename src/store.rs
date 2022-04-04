@@ -8,8 +8,8 @@ use crate::segment::Segment;
 /// implementation, which holds references to actual SDK data model objects.
 pub trait Store {
     /// Retrieve the flag with key `flag_key`.
-    fn flag(&self, flag_key: &str) -> Option<&Flag>;
+    fn flag(&self, flag_key: &str) -> Option<Flag>;
 
     /// Retrieve the segment with key `segment_key`.
-    fn segment(&self, segment_key: &str) -> Option<&Segment>;
+    fn segment(&self, segment_key: &str) -> Option<Segment>;
 }

@@ -1,14 +1,14 @@
 use chrono::{self, Utc};
 use log::{error, warn};
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::store::Store;
 use crate::user::{AttributeValue, User};
 use crate::variation::VariationOrRollout;
 
 /// Clause describes an individual clause within a [FlagRule] or SegmentRule.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Clause {
     attribute: String,
     negate: bool,
@@ -20,7 +20,7 @@ pub struct Clause {
 ///
 /// A rule consists of a set of ANDed matching conditions (Clause) for a user, along with either a
 /// fixed variation or a set of rollout percentages to use if the user matches all of the clauses.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlagRule {
     /// A randomized identifier assigned to each rule when it is created.
@@ -44,7 +44,7 @@ pub struct FlagRule {
     pub track_events: bool,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 enum Op {
     In,
@@ -245,10 +245,10 @@ mod tests {
     struct TestStore;
 
     impl Store for TestStore {
-        fn flag(&self, _flag_key: &str) -> Option<&Flag> {
+        fn flag(&self, _flag_key: &str) -> Option<Flag> {
             None
         }
-        fn segment(&self, _segment_key: &str) -> Option<&Segment> {
+        fn segment(&self, _segment_key: &str) -> Option<Segment> {
             None
         }
     }

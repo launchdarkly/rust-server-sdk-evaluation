@@ -26,3 +26,15 @@ pub use segment::*;
 pub use store::*;
 pub use user::*;
 pub use variation::*;
+
+/// Trait indicating that the item is versioned.
+pub trait Versioned {
+    /// Retrieve the version for this item instance.
+    fn version(&self) -> u64;
+
+    /// Determine if this item's version is greater than or equal to the provided version
+    /// parameter.
+    fn is_greater_than_or_equal(&self, version: u64) -> bool {
+        self.version() >= version
+    }
+}

@@ -421,12 +421,12 @@ impl TestStore {
 }
 
 impl Store for TestStore {
-    fn flag(&self, flag_key: &str) -> Option<&Flag> {
-        self.flags.get(flag_key)
+    fn flag(&self, flag_key: &str) -> Option<Flag> {
+        self.flags.get(flag_key).map(|f| f.clone())
     }
 
-    fn segment(&self, segment_key: &str) -> Option<&Segment> {
-        self.segments.get(segment_key)
+    fn segment(&self, segment_key: &str) -> Option<Segment> {
+        self.segments.get(segment_key).map(|f| f.clone())
     }
 }
 
