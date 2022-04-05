@@ -2,6 +2,15 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.0.0-beta.5] - 2022-04-04
+### Changed
+- Update to edition 2021.
+- Change store signature to support persistent stores.
+
+### Added
+- Support flag serialization of old and current schema.
+- Add versioned trait (implemented by flag and segment).
+
 ## [1.0.0-beta.4] - 2022-03-07
 ### Changed
 - Bump sha1 and test\_case dependencies.

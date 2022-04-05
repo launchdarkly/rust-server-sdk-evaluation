@@ -44,7 +44,7 @@ pub fn evaluate<'a>(
     for prereq in &flag.prerequisites {
         if let Some(prereq_flag) = store.flag(&prereq.key) {
             let prerequisite_result =
-                evaluate(store, prereq_flag, user, prerequisite_event_recorder);
+                evaluate(store, &prereq_flag, user, prerequisite_event_recorder);
             let variation_index = prerequisite_result.variation_index;
 
             if let Some(recorder) = prerequisite_event_recorder {

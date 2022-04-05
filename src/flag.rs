@@ -3,17 +3,20 @@ use std::fmt;
 
 use log::warn;
 use serde::de::{MapAccess, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::{
+    ser::{SerializeMap, SerializeStruct},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use crate::eval::{self, Detail, Reason};
 use crate::flag_value::FlagValue;
 use crate::rule::FlagRule;
 use crate::user::User;
 use crate::variation::{VariationIndex, VariationOrRollout};
-use crate::BucketResult;
+use crate::{BucketResult, Versioned};
 
 /// Flag describes an individual feature flag.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Flag {
     /// The unique string key of the feature flag.
@@ -76,6 +79,14 @@ pub struct Flag {
     pub debug_events_until_date: Option<u64>,
 }
 
+impl Versioned for Flag {
+    fn version(&self) -> u64 {
+        self.version
+    }
+}
+
+// TODO(mmk) Do we have to deal with serializing this to the old format if it was deserialized that
+// way?
 // This struct exists only so we can add some custom deserialization logic to account for the
 // potential presence of a client_side field in lieu of the client_side_availability field.
 #[derive(Clone, Debug)]
@@ -143,17 +154,37 @@ impl<'de> Deserialize<'de> for ClientVisibility {
     }
 }
 
+impl Serialize for ClientVisibility {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.client_side_availability.explicit {
+            let mut state = serializer.serialize_struct("ClientSideAvailability", 1)?;
+            state.serialize_field("clientSideAvailability", &self.client_side_availability)?;
+            state.end()
+        } else {
+            let mut map = serializer.serialize_map(Some(1))?;
+            map.serialize_entry(
+                "clientSide",
+                &self.client_side_availability.using_environment_id,
+            )?;
+            map.end()
+        }
+    }
+}
+
 /// Prereq describes a requirement that another feature flag return a specific variation.
 ///
 /// A prerequisite condition is met if the specified prerequisite flag has targeting turned on and
 /// returns the specified variation.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Prereq {
     pub(crate) key: String,
     pub(crate) variation: VariationIndex,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Target {
     pub(crate) values: Vec<String>,
     pub(crate) variation: VariationIndex,
@@ -163,7 +194,7 @@ pub(crate) struct Target {
 ///
 /// This field can be used by a server-side client to determine whether to include an individual flag in
 /// bootstrapped set of flag data (see <https://docs.launchdarkly.com/sdk/client-side/javascript#bootstrapping>).
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSideAvailability {
     /// Indicates that this flag is available to clients using the mobile key for
@@ -325,6 +356,40 @@ mod tests {
 
     #[test_case(true)]
     #[test_case(false)]
+    fn can_deserialize_and_reserialize_to_old_schema(client_side: bool) {
+        let json = &format!(
+            r#"{{
+  "key": "flag",
+  "version": 42,
+  "on": false,
+  "targets": [],
+  "rules": [],
+  "prerequisites": [],
+  "fallthrough": {{
+    "variation": 1
+  }},
+  "offVariation": 0,
+  "variations": [
+    false,
+    true
+  ],
+  "clientSide": {},
+  "salt": "salty",
+  "trackEvents": false,
+  "trackEventsFallthrough": false,
+  "debugEventsUntilDate": null
+}}"#,
+            client_side
+        );
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let restored = serde_json::to_string_pretty(&flag).unwrap();
+
+        assert_eq!(json, &restored);
+    }
+
+    #[test_case(true)]
+    #[test_case(false)]
     fn handles_new_flag_schema(using_environment_id: bool) {
         let json = &format!(
             r#"{{
@@ -356,6 +421,48 @@ mod tests {
         assert_eq!(client_side_availability.explicit, true);
 
         assert_eq!(flag.using_environment_id(), using_environment_id);
+    }
+
+    #[test_case(true, true)]
+    #[test_case(true, false)]
+    #[test_case(false, true)]
+    #[test_case(false, false)]
+    fn can_deserialize_and_reserialize_to_new_schema(
+        using_environment_id: bool,
+        using_mobile_key: bool,
+    ) {
+        let json = &format!(
+            r#"{{
+  "key": "flag",
+  "version": 42,
+  "on": false,
+  "targets": [],
+  "rules": [],
+  "prerequisites": [],
+  "fallthrough": {{
+    "variation": 1
+  }},
+  "offVariation": 0,
+  "variations": [
+    false,
+    true
+  ],
+  "clientSideAvailability": {{
+    "usingMobileKey": {},
+    "usingEnvironmentId": {}
+  }},
+  "salt": "salty",
+  "trackEvents": false,
+  "trackEventsFallthrough": false,
+  "debugEventsUntilDate": null
+}}"#,
+            using_environment_id, using_mobile_key
+        );
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let restored = serde_json::to_string_pretty(&flag).unwrap();
+
+        assert_eq!(json, &restored);
     }
 
     #[test]
