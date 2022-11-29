@@ -165,6 +165,10 @@ impl AttributeValue {
         semver::Version::parse(version_str)
             .ok()
             .or_else(|| AttributeValue::parse_semver_loose(version_str))
+            .map(|mut version| {
+                version.build = semver::BuildMetadata::EMPTY;
+                version
+            })
     }
 
     fn parse_semver_loose(version_str: &str) -> Option<semver::Version> {
