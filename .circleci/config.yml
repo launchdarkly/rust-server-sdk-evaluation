@@ -54,10 +54,13 @@ jobs:
           command: cargo fmt && git diff --exit-code
       - run:
           name: Clippy
-          command: cargo clippy -- -D warnings
+          command: cargo clippy --all-features -- -D warnings
+      - run:
+          name: Install cargo-all-features crate
+          command: cargo install cargo-all-features
       - run:
           name: Test
-          command: cargo test
+          command: cargo test-all-features
       - run:
           name: Gather Coverage
           command: ./coverage.sh --html
@@ -73,7 +76,7 @@ jobs:
           command: cargo build --target wasm32-wasi
       - run:
           name: Generate Docs
-          command: cargo doc --no-deps
+          command:  RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
       - store_artifacts:
           name: Upload Docs
           path: target/doc
