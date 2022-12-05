@@ -107,20 +107,6 @@ impl ContextBuilder {
         self
     }
 
-    /// Sets an attribute to an i64 numeric value.
-    ///
-    /// For rules regarding attribute names and values, see [ContextBuilder::set_value]. This method is
-    /// exactly exactly equivalent to calling `self.set_value(attribute_name,
-    /// AttributeValue::Number(value as f64))`.
-    ///
-    /// Note: the LaunchDarkly model for feature flags and context attributes is based on JSON types,
-    /// and does not distinguish between integer and floating-point types.
-    pub fn set_int(&mut self, attribute_name: &str, value: i64) -> &mut Self {
-        // TODO(mmk) We were doing this for user originally but this is not lossless.
-        self.set_value(attribute_name, AttributeValue::Number(value as f64));
-        self
-    }
-
     /// Sets an attribute to a string value.
     ///
     /// For rules regarding attribute names and values, see [ContextBuilder::set_value]. This method is
@@ -194,8 +180,11 @@ impl ContextBuilder {
             }
             ("key", _) => false,
             ("name", AttributeValue::String(s)) => {
-                // TODO(mmk) The go version let's this call continue if it is a string or null
                 self.name(s);
+                true
+            }
+            ("name", AttributeValue::Null) => {
+                self.name = None;
                 true
             }
             ("name", _) => false,
@@ -514,7 +503,6 @@ mod tests {
             .kind(Kind::user())
             .set_bool("loves-rust", true)
             .set_float("pi", 3.1459)
-            .set_int("answer-to-life", 42)
             .set_string("company", "LaunchDarkly");
 
         let context = builder.build().expect("Failed to build context");
@@ -526,10 +514,6 @@ mod tests {
         assert_eq!(
             &AttributeValue::Number(3.1459),
             context.attributes.get("pi").unwrap()
-        );
-        assert_eq!(
-            &AttributeValue::Number(42.0),
-            context.attributes.get("answer-to-life").unwrap()
         );
         assert_eq!(
             &AttributeValue::String("LaunchDarkly".to_string()),

@@ -447,12 +447,8 @@ struct PrivateAttributeLookupNode {
     children: HashMap<String, Box<PrivateAttributeLookupNode>>,
 }
 
-/// When sending [Context] information to LaunchDarkly, we may want to redact select context properties.
-///
-/// This struct handles the serialization rules for this redaction process. See
-/// <https://docs.launchdarkly.com/sdk/features/context-config#private-context-attributes-in-the-rust-sdk>
-/// for more information.
-// TODO(mmk) Check this link
+/// ContextAttributes is used to handle redaction of select context properties when serializing a
+/// [Context] that will be sent to LaunchDarkly.
 #[derive(Debug)]
 pub struct ContextAttributes {
     context: Context,
@@ -461,7 +457,8 @@ pub struct ContextAttributes {
 }
 
 impl ContextAttributes {
-    /// Construct a new [ContextAttributes] struct with the given parameters.
+    /// Construct from a source context, indicating if all attributes should be private,
+    /// and providing a set of attribute references that should be selectively marked private.
     pub fn from_context(
         context: Context,
         all_attributes_private: bool,
