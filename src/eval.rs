@@ -231,7 +231,7 @@ fn target_match_variation(context: &Context, target: &Target) -> Option<Variatio
 
 /// A Detail instance is returned from [evaluate], combining the result of a flag evaluation with
 /// an explanation of how it was calculated.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Detail<T> {
     /// The result of the flag evaluation. This will be either one of the flag's variations or None
     /// if no appropriate fallback value was configured.
@@ -363,7 +363,7 @@ impl<T> Detail<T> {
 }
 
 /// Reason describes the reason that a flag evaluation produced a particular value.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "kind")]
 pub enum Reason {
     /// Off indicates that the flag was off and therefore returned its configured off value.
@@ -425,7 +425,7 @@ impl Reason {
 
 /// Error is returned via a [Reason::Error] when the client could not evaluate a flag, and
 /// provides information about why the flag could not be evaluated.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Error {
     /// ClientNotReady indicates that the caller tried to evaluate a flag before the client

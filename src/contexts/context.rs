@@ -301,7 +301,7 @@ impl Context {
     pub fn as_kind(&self, kind: &Kind) -> Option<&Context> {
         match &self.contexts {
             Some(contexts) => contexts.iter().find(|c| c.kind() == kind),
-            None => self.kind.eq(kind).then(|| self),
+            None => self.kind.eq(kind).then_some(self),
         }
     }
 
@@ -795,7 +795,7 @@ impl ContextAttributes {
     }
 }
 
-impl<'dispatcher> ser::Serialize for ContextAttributes {
+impl ser::Serialize for ContextAttributes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
