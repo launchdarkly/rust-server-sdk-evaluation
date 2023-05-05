@@ -3,7 +3,6 @@ use crate::AttributeValue;
 use log::warn;
 
 use std::collections::HashMap;
-use urlencoding::encode;
 
 const DEFAULT_MULTI_BUILDER_CAPACITY: usize = 3; // arbitrary value based on presumed likely use cases
 
@@ -311,7 +310,7 @@ fn canonical_key_for_kind(kind: &Kind, key: &str, omit_user_kind: bool) -> Strin
     if omit_user_kind && kind.is_user() {
         return key.to_owned();
     }
-    format!("{}:{}", kind, encode(key))
+    format!("{}:{}", kind, key.replace('%', "%25").replace(':', "%3A"))
 }
 
 /// Contains methods for building a multi-context.
@@ -464,7 +463,8 @@ mod tests {
     // as a single-kind context (special case.)
     #[test_case(vec![("key", Kind::user())], "key")]
     #[test_case(vec![("userKey", Kind::user()), ("orgKey", Kind::from("org"))], "org:orgKey:user:userKey")]
-    #[test_case(vec![("some user", Kind::user()), ("org:key", Kind::from("org"))], "org:org%3Akey:user:some%20user")]
+    #[test_case(vec![("some user", Kind::user()), ("org:key", Kind::from("org"))], "org:org%3Akey:user:some user")]
+    #[test_case(vec![("my:key%x/y", Kind::from("org"))], "org:my%3Akey%25x/y")]
     fn builder_sets_canonical_key_correctly_for_multiple_contexts(
         tuples: Vec<(&str, Kind)>,
         expected_key: &str,
