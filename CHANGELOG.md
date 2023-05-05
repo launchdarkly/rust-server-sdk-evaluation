@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.1.0] - 2023-05-05
+### Changed:
+- Updated MSRV from 1.60.0 to 1.64.0
+
+### Fixed:
+- Fix invalid encoding for fully qualified context key generation.
+
 ## [1.0.0] - 2022-12-06
 This release of the evaluation engine corresponds to the upcoming v1.0.0 release of the LaunchDarkly server-side Rust SDK (launchdarkly-server-sdk), and is not compatible with earlier SDK versions.
 
