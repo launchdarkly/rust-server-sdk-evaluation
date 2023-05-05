@@ -466,7 +466,7 @@ mod tests {
             Err(e) => panic!("expected user to deserialize without error: {:?}", e),
             Ok(c) => match c {
                 ContextVariant::Implicit(user) => {
-                    assert_eq!(user.ip.unwrap_or_else(|| "".to_string()), "b");
+                    assert_eq!(user.ip.unwrap_or_default(), "b");
                 }
                 _ => panic!("expected user format"),
             },
