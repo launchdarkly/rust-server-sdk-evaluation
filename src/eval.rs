@@ -739,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_flag_segments() {
+    fn test_eval_flag_single_user_segments() {
         let store = TestStore::new();
         let flag = store.flag("flagWithSegmentMatchRule").unwrap();
 
@@ -757,6 +757,107 @@ mod tests {
         });
         let detail = evaluate(&store, &flag, &bob, None);
         asserting!("bob is not in segment and should see fallthrough")
+            .that(&detail.value)
+            .contains_value(&Bool(true));
+        assert_that!(detail.reason).is_equal_to(Reason::Fallthrough {
+            in_experiment: false,
+        });
+    }
+
+    #[test]
+    fn test_eval_multi_context_user_segment() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithSegmentMatchRule").unwrap();
+        let alice = ContextBuilder::new("alice").build();
+        let taco = ContextBuilder::new("taco").kind("food").build();
+        let multi = MultiContextBuilder::new()
+            .add_context(taco.unwrap())
+            .add_context(alice.unwrap())
+            .build()
+            .unwrap();
+
+        let detail = evaluate(&store, &flag, &multi, None);
+
+        asserting!("alice is in segment, should see false with RuleMatch")
+            .that(&detail.value)
+            .contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch {
+            rule_id: "match-rule".to_string(),
+            rule_index: 0,
+            in_experiment: false,
+        });
+    }
+
+    #[test]
+    fn test_eval_single_franchise_segment() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithContextSegmentMatchRule").unwrap();
+        let macdonwalds = ContextBuilder::new("macdonwalds")
+            .kind("franchise")
+            .build()
+            .unwrap();
+
+        let detail = evaluate(&store, &flag, &macdonwalds, None);
+
+        asserting!("macdonwalds is in segment, should see false with RuleMatch")
+            .that(&detail.value)
+            .contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch {
+            rule_id: "match-rule".to_string(),
+            rule_index: 0,
+            in_experiment: false,
+        });
+    }
+
+    #[test]
+    fn test_eval_multi_franchise_segment() {
+        let store = TestStore::new();
+        let flag = store.flag("flagWithContextSegmentMatchRule").unwrap();
+        let macdonwalds = ContextBuilder::new("macdonwalds")
+            .kind("franchise")
+            .build()
+            .unwrap();
+
+        let alice = ContextBuilder::new("alice").build().unwrap();
+        let multi = MultiContextBuilder::new()
+            .add_context(alice)
+            .add_context(macdonwalds)
+            .build()
+            .unwrap();
+
+        let detail = evaluate(&store, &flag, &multi, None);
+
+        asserting!("macdonwalds is in segment, should see false with RuleMatch")
+            .that(&detail.value)
+            .contains_value(&Bool(false));
+        assert_that!(detail.reason).is_equal_to(Reason::RuleMatch {
+            rule_id: "match-rule".to_string(),
+            rule_index: 0,
+            in_experiment: false,
+        });
+    }
+
+    #[test]
+    fn test_eval_multi_franchise_segment_exclude() {
+        let store = TestStore::new();
+        let flag = store
+            .flag("flagWithContextExcludeSegmentMatchRule")
+            .unwrap();
+        let tacochime = ContextBuilder::new("tacochime")
+            .kind("franchise")
+            .build()
+            .unwrap();
+
+        let alice = ContextBuilder::new("alice").build().unwrap();
+        let multi = MultiContextBuilder::new()
+            .add_context(alice)
+            .add_context(tacochime)
+            .build()
+            .unwrap();
+
+        let detail = evaluate(&store, &flag, &multi, None);
+
+        asserting!("tacochime is not in the segment, should see false with Fallthrough")
             .that(&detail.value)
             .contains_value(&Bool(true));
         assert_that!(detail.reason).is_equal_to(Reason::Fallthrough {

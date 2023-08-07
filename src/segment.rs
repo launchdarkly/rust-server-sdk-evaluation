@@ -175,24 +175,20 @@ impl Segment {
     fn is_contained_in(
         &self,
         context: &Context,
-        keys: &[String],
-        targets: &[SegmentTarget],
+        user_keys: &[String],
+        context_targets: &[SegmentTarget],
     ) -> bool {
-        if context.kind().is_user() && targets.is_empty() {
-            return keys.iter().any(|k| k == context.key());
-        }
-
-        for target in targets {
+        for target in context_targets {
             if let Some(context) = context.as_kind(&target.context_kind) {
                 let key = context.key();
                 if target.values.iter().any(|v| v == key) {
                     return true;
                 }
-
-                if context.kind().is_user() && keys.iter().any(|k| k == key) {
-                    return true;
-                }
             }
+        }
+
+        if let Some(context) = context.as_kind(&Kind::user()) {
+            return user_keys.contains(&context.key().to_string());
         }
 
         false

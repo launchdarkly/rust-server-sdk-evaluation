@@ -4,7 +4,7 @@
 
 ## LaunchDarkly overview
 
-[LaunchDarkly](https://www.launchdarkly.com) is a feature management platform that serves over 100 billion feature flags daily to help teams build better software, faster. [Get started](https://docs.launchdarkly.com/home/getting-started) using LaunchDarkly today!
+[LaunchDarkly](https://www.launchdarkly.com) is a feature management platform that serves trillions of feature flags daily to help teams build better software, faster. [Get started](https://docs.launchdarkly.com/home/getting-started) using LaunchDarkly today!
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/launchdarkly.svg?style=social&label=Follow&maxAge=2592000)](https://twitter.com/intent/follow?screen_name=launchdarkly)
 
@@ -14,7 +14,7 @@ This repository contains the internal feature flag evaluation logic and data mod
 
 ## Learn more
 
-Check out our [documentation](http://docs.launchdarkly.com) for in-depth instructions on configuring and using LaunchDarkly. You can also head straight to the [complete reference guide for the Rust SDK](https://docs.launchdarkly.com/sdk/server-side/rust), or the [generated API documentation](https://docs.rs/launchdarkly-server-sdk-evaluation) for this project.
+Read our [documentation](http://docs.launchdarkly.com) for in-depth instructions on configuring and using LaunchDarkly. You can also head straight to the [complete reference guide for the Rust SDK](https://docs.launchdarkly.com/sdk/server-side/rust), or the [generated API documentation](https://docs.rs/launchdarkly-server-sdk-evaluation) for this project.
 
 ## Contributing
 
@@ -27,7 +27,7 @@ We encourage pull requests and other contributions from the community. Check out
     * Gradually roll out a feature to an increasing percentage of users, and track the effect that the feature has on key metrics (for instance, how likely is a user to complete a purchase if they have feature A versus feature B?).
     * Turn off a feature that you realize is causing performance problems in production, without needing to re-deploy, or even restart the application with a changed configuration file.
     * Grant access to certain features based on user attributes, like payment plan (eg: users on the ‘gold’ plan get access to more features than users in the ‘silver’ plan). Disable parts of your application to facilitate maintenance, without taking everything offline.
-* LaunchDarkly provides feature flag SDKs for a wide variety of languages and technologies. Check out [our documentation](https://docs.launchdarkly.com/docs) for a complete list.
+* LaunchDarkly provides feature flag SDKs for a wide variety of languages and technologies. Read [our documentation](https://docs.launchdarkly.com/docs) for a complete list.
 * Explore LaunchDarkly
     * [launchdarkly.com](https://www.launchdarkly.com/ "LaunchDarkly Main Website") for more information
     * [docs.launchdarkly.com](https://docs.launchdarkly.com/  "LaunchDarkly Documentation") for our documentation and SDK reference guides
