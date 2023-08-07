@@ -125,7 +125,6 @@ impl Reference {
 
         let component_result = value[1..]
             .split('/')
-            .into_iter()
             .map(|part| {
                 if part.is_empty() {
                     return Err(Error::DoubleOrTrailingSlash);

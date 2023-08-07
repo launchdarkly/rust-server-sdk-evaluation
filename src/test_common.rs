@@ -605,6 +605,69 @@ impl TestStore {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
+                "flagWithContextSegmentMatchRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithContextSegmentMatchRule",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [{
+                            "id": "match-rule",
+                            "clauses": [{
+                                "contextKind": "user",
+                                "attribute": "key",
+                                "negate": false,
+                                "op": "segmentMatch",
+                                "values": ["segmentB"]
+                            }],
+                            "variation": 0,
+                            "trackEvents": false
+                        }],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSide": true,
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty"
+                    }"#).unwrap(),
+                    "flagWithContextExcludeSegmentMatchRule".to_string() => serde_json::from_str(r#"{
+                        "key": "flagWithContextSegmentMatchRule",
+                        "version": 42,
+                        "on": true,
+                        "targets": [],
+                        "rules": [{
+                            "id": "match-rule",
+                            "clauses": [
+                            {
+                                "contextKind": "user",
+                                "attribute": "key",
+                                "negate": false,
+                                "op": "segmentMatch",
+                                "values": ["segment"]
+                            }, {
+                                "contextKind": "user",
+                                "attribute": "key",
+                                "negate": false,
+                                "op": "segmentMatch",
+                                "values": ["segmentB"]
+                            }],
+                            "variation": 0,
+                            "trackEvents": false
+                        }],
+                        "prerequisites": [],
+                        "fallthrough": {"variation": 1},
+                        "offVariation": 0,
+                        "variations": [false, true],
+                        "clientSide": true,
+                        "clientSideAvailability": {
+                            "usingEnvironmentId": true,
+                            "usingMobileKey": true
+                        },
+                        "salt": "salty"
+                    }"#).unwrap(),
                 "flagWithPrereqWhichDuplicatesSegmentRuleCheck".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithPrereqWhichDuplicatesSegmentRuleCheck",
                         "version": 42,
@@ -667,15 +730,21 @@ impl TestStore {
                 "segment".to_string() => serde_json::from_str(r#"{
                         "key": "segment",
                         "included": ["alice"],
-                        "includedContexts": [{
-                            "values": [],
-                            "contextKind": "user"
-                        }],
                         "excluded": [],
                         "rules": [],
                         "salt": "salty",
                         "version": 1
-                    }"#).unwrap()
+                    }"#).unwrap(),
+                "segmentB".to_string() => serde_json::from_str(r#"{
+                    "key": "segmentB",
+                    "included": [],
+                    "excluded": [],
+                    "includedContexts": [{"contextKind": "franchise", "values": ["macdonwalds"]}],
+                    "excludedContexts": [{"contextKind": "franchise", "values": ["tacochime"]}],
+                    "rules": [],
+                    "salt": "salty",
+                    "version": 1
+                }"#).unwrap()
             },
         }
     }
