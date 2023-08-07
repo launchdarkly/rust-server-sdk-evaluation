@@ -2,6 +2,10 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.1.1] - 2023-08-07
+### Fixed:
+- Fixed an issue with evaluation of segments which included/excluded users when that user was part of a multi-context.
+
 ## [1.1.0] - 2023-05-05
 ### Changed:
 - Updated MSRV from 1.60.0 to 1.64.0
