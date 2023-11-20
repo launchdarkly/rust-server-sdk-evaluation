@@ -42,7 +42,7 @@ proptest-derive = "0.3.0"
 
 [features]
 # If a secondary key is present in Context data, use it when computing
-# the Context's bucket. This may be enabled for backwards-compatability purposes,
-# e.g. for usage in a non-SDK application, but it is otherwise unecessary as
+# the Context's bucket. This may be enabled for backwards-compatibility purposes,
+# e.g. for usage in a non-SDK application, but it is otherwise unnecessary as
 # secondary keys cannot be set using Context builders.
 secondary_key_bucketing = []

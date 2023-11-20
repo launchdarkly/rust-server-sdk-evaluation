@@ -14,7 +14,7 @@ jobs:
         # To solve: increment the CACHE_VERSION environment variable in the CircleCI Project settings.
         # Example: if the current CACHE_VERSION is 'xxxx2' (this value isn't sensitive, but CircleCI masks it)
         # then it means the current version is 'v2', so the next should be 'v3'.
-      - image: cimg/rust:1.70.0
+      - image: cimg/rust:1.68.0
     steps:
       - checkout
       - run:
@@ -56,11 +56,11 @@ jobs:
           name: Clippy
           command: cargo clippy --all-features -- -D warnings
       - run:
-          name: Install cargo-all-features crate
-          command: cargo install cargo-all-features
+          name: Test with default features
+          command: cargo test
       - run:
-          name: Test
-          command: cargo test-all-features
+          name: Test with secondary bucketing
+          command: cargo test --features secondary_key_bucketing
       - run:
           name: Gather Coverage
           command: ./coverage.sh --html
