@@ -14,7 +14,7 @@ jobs:
         # To solve: increment the CACHE_VERSION environment variable in the CircleCI Project settings.
         # Example: if the current CACHE_VERSION is 'xxxx2' (this value isn't sensitive, but CircleCI masks it)
         # then it means the current version is 'v2', so the next should be 'v3'.
-      - image: cimg/rust:1.64.0
+      - image: cimg/rust:1.70.0
     steps:
       - checkout
       - run:
