@@ -1,6 +1,6 @@
 # LaunchDarkly Rust SDK Evaluation Engine
 
-[![Circle CI](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation.svg?style=shield)](https://circleci.com/gh/launchdarkly/rust-server-sdk-evaluation)
+[![Run CI](https://github.com/launchdarkly/rust-server-sdk-evaluation/actions/workflows/ci.yml/badge.svg)](https://github.com/launchdarkly/rust-server-sdk-evaluation/actions/workflows/ci.yml)
 
 ## LaunchDarkly overview
 
