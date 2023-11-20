@@ -60,7 +60,7 @@ jobs:
           command: cargo test
       - run:
           name: Test with secondary bucketing
-          command: cargo test --feature secondary_key_bucketing
+          command: cargo test --features secondary_key_bucketing
       - run:
           name: Gather Coverage
           command: ./coverage.sh --html
