@@ -10,9 +10,7 @@ homepage = "https://docs.launchdarkly.com/sdk/server-side/rust"
 repository = "https://github.com/launchdarkly/rust-server-sdk-evaluation"
 keywords = ["launchdarkly", "feature-flags", "feature-toggles"]
 exclude = [
-    ".circleci",
     ".github",
-    ".ldrelease",
     ".pre-commit-config.yaml",
     "coverage.sh"
 ]

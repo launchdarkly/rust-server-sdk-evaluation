@@ -1,0 +1,29 @@
+name: CI Workflow
+description: 'Shared CI workflow.'
+
+runs:
+  using: composite
+  steps:
+    - name: Check formatting
+      shell: bash
+      run: cargo fmt --check
+
+    - name: Run tests with default features
+      shell: bash
+      run: cargo test
+
+    - name: Run tests with secondary feature
+      shell: bash
+      run: cargo test --features secondary_key_bucketing
+
+    - name: Run clippy checks
+      shell: bash
+      run: cargo clippy --all-features -- -D warnings
+
+    - name: Build default Target
+      shell: bash
+      run: cargo build
+
+    - name: Build wasm32 Target
+      shell: bash
+      run: cargo build --target wasm32-wasi

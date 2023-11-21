@@ -1,0 +1,12 @@
+name: Install shared tooling
+description: 'Install shared tooling'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup rust tooling
+      shell: bash
+      run: |
+        rustup override set 1.68
+        rustup component add rustfmt clippy
+        rustup target add wasm32-wasi
