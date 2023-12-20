@@ -16,6 +16,12 @@ This repository contains the internal feature flag evaluation logic and data mod
 
 Read our [documentation](http://docs.launchdarkly.com) for in-depth instructions on configuring and using LaunchDarkly. You can also head straight to the [complete reference guide for the Rust SDK](https://docs.launchdarkly.com/sdk/server-side/rust), or the [generated API documentation](https://docs.rs/launchdarkly-server-sdk-evaluation) for this project.
 
+## Minimum Supported Rust Version
+
+This project aims to maintain compatibility with a Rust version that is at least six months old.
+
+Version updates may occur more frequently than the policy guideline states if external forces require it. For example, a CVE in a downstream dependency requiring an MSRV bump would be considered an acceptable reason to violate the six month guideline.
+
 ## Contributing
 
 We encourage pull requests and other contributions from the community. Check out our [contributing guidelines](CONTRIBUTING.md) for instructions on how to contribute to this SDK.
