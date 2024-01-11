@@ -454,6 +454,7 @@ pub struct ContextAttributes {
     context: Context,
     all_attributes_private: bool,
     global_private_attributes: HashMap<String, Box<PrivateAttributeLookupNode>>,
+    redact_anonymous: bool,
 }
 
 impl ContextAttributes {
@@ -468,6 +469,25 @@ impl ContextAttributes {
             context,
             all_attributes_private,
             global_private_attributes: Self::make_private_attribute_lookup_data(private_attributes),
+            redact_anonymous: false,
+        }
+    }
+
+    /// Construct from a source context, indicating if all attributes should be private,
+    /// and providing a set of attribute references that should be selectively marked private.
+    ///
+    /// If a provided context is anonymous, all attributes will be redacted except for key, kind,
+    /// and anonymous.
+    pub fn from_context_with_anonymous_redaction(
+        context: Context,
+        all_attributes_private: bool,
+        private_attributes: HashSet<Reference>,
+    ) -> Self {
+        Self {
+            context,
+            all_attributes_private,
+            global_private_attributes: Self::make_private_attribute_lookup_data(private_attributes),
+            redact_anonymous: true,
         }
     }
 
@@ -556,13 +576,16 @@ impl ContextAttributes {
         let optional_attribute_names = context.get_optional_attribute_names();
         let mut redacted_attributes = Vec::<String>::with_capacity(20);
 
+        let redact_all =
+            self.all_attributes_private || (self.redact_anonymous && context.anonymous);
+
         for key in optional_attribute_names.iter() {
             let reference = Reference::new(key);
             if let Some(value) = context.get_value(&reference) {
-                // If all_attributes_private is true, then there's no complex filtering or
+                // If redact_all is true, then there's no complex filtering or
                 // recursing to be done: all of these values are by definition private, so just add
                 // their names to the redacted list.
-                if self.all_attributes_private {
+                if redact_all {
                     redacted_attributes.push(String::from(reference));
                     continue;
                 }
