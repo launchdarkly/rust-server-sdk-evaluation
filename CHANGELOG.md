@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.2.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/1.1.1...1.2.0) (2024-03-14)
+
+
+### Features
+
+* Support redacting all attributes from anonymous contexts ([#14](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/14)) ([76d5e52](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/76d5e5290d3a33c8bc939f3d66f7f3d1e61aaffc))
+
 ## [1.1.1] - 2023-08-07
 ### Fixed:
 - Fixed an issue with evaluation of segments which included/excluded users when that user was part of a multi-context.
