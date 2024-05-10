@@ -231,16 +231,19 @@ fn target_match_variation(context: &Context, target: &Target) -> Option<Variatio
 
 /// A Detail instance is returned from [evaluate], combining the result of a flag evaluation with
 /// an explanation of how it was calculated.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Detail<T> {
     /// The result of the flag evaluation. This will be either one of the flag's variations or None
     /// if no appropriate fallback value was configured.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<T>,
 
     /// The index of the returned value within the flag's list of variations, e.g. 0 for the first
     /// variation. This is an Option because it is possible for the value to be undefined (there is
     /// no variation index if the application default value was returned due to an error in
     /// evaluation) which is different from a value of 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variation_index: Option<VariationIndex>,
 
     /// A reason struct describing the main factor that influenced the flag evaluation value.
