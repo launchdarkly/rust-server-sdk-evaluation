@@ -80,11 +80,54 @@ pub struct Flag {
     /// model for use by the SDK.
     #[serde(default)]
     pub debug_events_until_date: Option<u64>,
+
+    /// Contains migration-related flag parameters. If this flag is for migration purposes, this
+    /// property is guaranteed to be set.
+    #[serde(default, skip_serializing_if = "is_default_migration_settings")]
+    pub migration_settings: Option<MigrationFlagParameters>,
+
+    /// Controls the rate at which feature and debug events are emitted from the SDK for this
+    /// particular flag. If this value is not defined, it is assumed to be 1.
+    ///
+    /// LaunchDarkly may affect this flag to prevent poorly performing applications from adversely
+    /// affecting upstream service health.
+    #[serde(default, skip_serializing_if = "is_default_ratio")]
+    pub sampling_ratio: Option<u64>,
 }
 
 impl Versioned for Flag {
     fn version(&self) -> u64 {
         self.version
+    }
+}
+
+// Used strictly for serialization to determine if a ratio should be included in the JSON.
+fn is_default_ratio(sampling_ratio: &Option<u64>) -> bool {
+    sampling_ratio.unwrap_or(1) == 1
+}
+
+// Used strictly for serialization to determine if migration settings should be included in the JSON.
+fn is_default_migration_settings(settings: &Option<MigrationFlagParameters>) -> bool {
+    match settings {
+        Some(settings) => settings.is_default(),
+        None => true,
+    }
+}
+
+/// MigrationFlagParameters are used to control flag-specific migration configuration.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationFlagParameters {
+    /// Controls the rate at which consistency checks are performing during a migration-influenced
+    /// read or write operation. This value can be controlled through the LaunchDarkly UI and
+    /// propagated downstream to the SDKs.
+    #[serde(skip_serializing_if = "is_default_ratio")]
+    pub check_ratio: Option<u64>,
+}
+
+impl MigrationFlagParameters {
+    fn is_default(&self) -> bool {
+        is_default_ratio(&self.check_ratio)
     }
 }
 
@@ -316,6 +359,8 @@ impl Flag {
             track_events_fallthrough: false,
             debug_events_until_date: None,
             context_targets: vec![],
+            migration_settings: None,
+            sampling_ratio: None,
         }
     }
 }
@@ -324,6 +369,7 @@ impl Flag {
 mod tests {
     use crate::store::Store;
     use crate::test_common::TestStore;
+    use crate::MigrationFlagParameters;
     use spectral::prelude::*;
 
     use super::Flag;
@@ -582,5 +628,50 @@ mod tests {
                 in_experiment: false,
             }))
             .is_false();
+    }
+
+    #[test]
+    fn sampling_ratio_is_ignored_appropriately() {
+        let store = TestStore::new();
+        let mut flag = store.flag("flag").unwrap();
+
+        flag.sampling_ratio = Some(42);
+        let with_low_sampling_ratio = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(with_low_sampling_ratio.contains("\"samplingRatio\": 42"));
+
+        flag.sampling_ratio = Some(1);
+        let with_highest_ratio = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!with_highest_ratio.contains("\"samplingRatio\""));
+
+        flag.sampling_ratio = None;
+        let with_no_ratio = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!with_no_ratio.contains("\"samplingRatio\""));
+    }
+
+    #[test]
+    fn migration_settings_included_appropriately() {
+        let store = TestStore::new();
+        let mut flag = store.flag("flag").unwrap();
+
+        flag.migration_settings = None;
+        let without_migration_settings = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!without_migration_settings.contains("\"migrationSettings\""));
+
+        flag.migration_settings = Some(MigrationFlagParameters { check_ratio: None });
+        let without_empty_migration_settings = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!without_empty_migration_settings.contains("\"migrationSettings\""));
+
+        flag.migration_settings = Some(MigrationFlagParameters {
+            check_ratio: Some(1),
+        });
+        let with_default_ratio = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!with_default_ratio.contains("\"migrationSettings\""));
+
+        flag.migration_settings = Some(MigrationFlagParameters {
+            check_ratio: Some(42),
+        });
+        let with_specific_ratio = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(with_specific_ratio.contains("\"migrationSettings\": {"));
+        assert!(with_specific_ratio.contains("\"checkRatio\": 42"));
     }
 }
