@@ -92,7 +92,14 @@ pub struct Flag {
     /// LaunchDarkly may affect this flag to prevent poorly performing applications from adversely
     /// affecting upstream service health.
     #[serde(default, skip_serializing_if = "is_default_ratio")]
-    pub sampling_ratio: Option<u64>,
+    pub sampling_ratio: Option<u32>,
+
+    /// Determines whether or not this flag will be excluded from the event summarization process.
+    ///
+    /// LaunchDarkly may affect this flag to prevent poorly performing applications from adversely
+    /// affecting upstream service health.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub exclude_from_summaries: bool,
 }
 
 impl Versioned for Flag {
@@ -102,7 +109,7 @@ impl Versioned for Flag {
 }
 
 // Used strictly for serialization to determine if a ratio should be included in the JSON.
-fn is_default_ratio(sampling_ratio: &Option<u64>) -> bool {
+fn is_default_ratio(sampling_ratio: &Option<u32>) -> bool {
     sampling_ratio.unwrap_or(1) == 1
 }
 
@@ -122,7 +129,7 @@ pub struct MigrationFlagParameters {
     /// read or write operation. This value can be controlled through the LaunchDarkly UI and
     /// propagated downstream to the SDKs.
     #[serde(skip_serializing_if = "is_default_ratio")]
-    pub check_ratio: Option<u64>,
+    pub check_ratio: Option<u32>,
 }
 
 impl MigrationFlagParameters {
@@ -361,6 +368,7 @@ impl Flag {
             context_targets: vec![],
             migration_settings: None,
             sampling_ratio: None,
+            exclude_from_summaries: false,
         }
     }
 }
@@ -646,6 +654,20 @@ mod tests {
         flag.sampling_ratio = None;
         let with_no_ratio = serde_json::to_string_pretty(&flag).unwrap();
         assert!(!with_no_ratio.contains("\"samplingRatio\""));
+    }
+
+    #[test]
+    fn exclude_from_summaries_is_ignored_appropriately() {
+        let store = TestStore::new();
+        let mut flag = store.flag("flag").unwrap();
+
+        flag.exclude_from_summaries = true;
+        let with_exclude = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(with_exclude.contains("\"excludeFromSummaries\": true"));
+
+        flag.exclude_from_summaries = false;
+        let without_exclude = serde_json::to_string_pretty(&flag).unwrap();
+        assert!(!without_exclude.contains("\"excludeFromSummaries\""));
     }
 
     #[test]

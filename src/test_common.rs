@@ -531,7 +531,8 @@ impl TestStore {
                             "usingEnvironmentId": true,
                             "usingMobileKey": true
                         },
-                        "salt": "salty"
+                        "salt": "salty",
+                        "excludeFromSummaries": true
                     }"#).unwrap(),
                 "offPrereq".to_string() => serde_json::from_str(r#"{
                         "key": "offPrereq",
