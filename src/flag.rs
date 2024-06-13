@@ -96,7 +96,7 @@ pub struct Flag {
     /// LaunchDarkly may modify this value to prevent poorly performing applications from adversely
     /// affecting upstream service health.
     #[serde(default, skip_serializing_if = "is_default_ratio")]
-    pub sampling_ratio: Option<u64>,
+    pub sampling_ratio: Option<u32>,
 
     /// Determines whether or not this flag will be excluded from the event summarization process.
     ///
@@ -113,7 +113,7 @@ impl Versioned for Flag {
 }
 
 // Used strictly for serialization to determine if a ratio should be included in the JSON.
-fn is_default_ratio(sampling_ratio: &Option<u64>) -> bool {
+fn is_default_ratio(sampling_ratio: &Option<u32>) -> bool {
     sampling_ratio.unwrap_or(1) == 1
 }
 
@@ -133,7 +133,7 @@ pub struct MigrationFlagParameters {
     /// read or write operation. This value can be controlled through the LaunchDarkly UI and
     /// propagated downstream to the SDKs.
     #[serde(skip_serializing_if = "is_default_ratio")]
-    pub check_ratio: Option<u64>,
+    pub check_ratio: Option<u32>,
 }
 
 impl MigrationFlagParameters {
