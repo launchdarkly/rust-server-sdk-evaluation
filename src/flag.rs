@@ -83,7 +83,11 @@ pub struct Flag {
 
     /// Contains migration-related flag parameters. If this flag is for migration purposes, this
     /// property is guaranteed to be set.
-    #[serde(default, skip_serializing_if = "is_default_migration_settings")]
+    #[serde(
+        default,
+        rename = "migration",
+        skip_serializing_if = "is_default_migration_settings"
+    )]
     pub migration_settings: Option<MigrationFlagParameters>,
 
     /// Controls the rate at which feature and debug events are emitted from the SDK for this
