@@ -604,10 +604,12 @@ mod tests {
         let event = &recorder.events.borrow()[0];
         assert_eq!("flagWithSatisfiedPrereq", event.target_flag_key);
         assert_eq!("prereq", event.prerequisite_flag.key);
+        assert!(event.prerequisite_flag.exclude_from_summaries);
 
         let event = &recorder.events.borrow()[1];
         assert_eq!("flagWithNestedPrereq", event.target_flag_key);
         assert_eq!("flagWithSatisfiedPrereq", event.prerequisite_flag.key);
+        assert!(!event.prerequisite_flag.exclude_from_summaries);
     }
 
     #[test]

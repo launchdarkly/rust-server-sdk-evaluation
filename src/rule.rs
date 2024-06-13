@@ -1324,7 +1324,7 @@ mod tests {
     proptest! {
         #[test]
         fn arbitrary_clause_serialization_rountrip(clause in any_clause()) {
-            let json = serde_json::to_value(&clause).expect("a clause should serialize");
+            let json = serde_json::to_value(clause).expect("a clause should serialize");
             let parsed: Clause = serde_json::from_value(json.clone()).expect("a clause should parse");
             assert_json_eq!(json, parsed);
         }
