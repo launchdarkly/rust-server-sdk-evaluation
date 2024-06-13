@@ -93,14 +93,14 @@ pub struct Flag {
     /// Controls the rate at which feature and debug events are emitted from the SDK for this
     /// particular flag. If this value is not defined, it is assumed to be 1.
     ///
-    /// LaunchDarkly may affect this flag to prevent poorly performing applications from adversely
+    /// LaunchDarkly may modify this value to prevent poorly performing applications from adversely
     /// affecting upstream service health.
     #[serde(default, skip_serializing_if = "is_default_ratio")]
     pub sampling_ratio: Option<u64>,
 
     /// Determines whether or not this flag will be excluded from the event summarization process.
     ///
-    /// LaunchDarkly may affect this flag to prevent poorly performing applications from adversely
+    /// LaunchDarkly may change this value to prevent poorly performing applications from adversely
     /// affecting upstream service health.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub exclude_from_summaries: bool,
