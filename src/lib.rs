@@ -31,14 +31,6 @@ pub use segment::*;
 pub use store::*;
 pub use variation::*;
 
-#[cfg(test)]
-pub(crate) mod proptest_generators {
-    pub(crate) use crate::contexts::attribute_reference::proptest_generators::*;
-    pub(crate) use crate::contexts::context::proptest_generators::*;
-    pub(crate) use crate::rule::proptest_generators::*;
-    pub(crate) use crate::variation::proptest_generators::*;
-}
-
 /// Trait indicating that the item is versioned.
 pub trait Versioned {
     /// Retrieve the version for this item instance.
@@ -49,4 +41,12 @@ pub trait Versioned {
     fn is_greater_than_or_equal(&self, version: u64) -> bool {
         self.version() >= version
     }
+}
+
+#[cfg(test)]
+pub(crate) mod proptest_generators {
+    pub(crate) use crate::contexts::attribute_reference::proptest_generators::*;
+    pub(crate) use crate::contexts::context::proptest_generators::*;
+    pub(crate) use crate::rule::proptest_generators::*;
+    pub(crate) use crate::variation::proptest_generators::*;
 }
