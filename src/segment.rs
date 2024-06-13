@@ -519,7 +519,7 @@ mod tests {
     proptest! {
         #[test]
         fn arbitrary_segment_rule_serialization_roundtrip(rule in any_segment_rule()) {
-            let json = serde_json::to_value(&rule).expect("an arbitrary segment rule should serialize");
+            let json = serde_json::to_value(rule).expect("an arbitrary segment rule should serialize");
             let parsed: SegmentRule = serde_json::from_value(json.clone()).expect("an arbitrary segment rule should parse");
             assert_json_eq!(json, parsed);
         }

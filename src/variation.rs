@@ -752,7 +752,7 @@ mod tests {
     proptest! {
         #[test]
          fn arbitrary_rollout_serialization_roundtrip(rollout in any_rollout()) {
-            let json = serde_json::to_value(&rollout).expect("a rollout should serialize");
+            let json = serde_json::to_value(rollout).expect("a rollout should serialize");
             let parsed: Rollout = serde_json::from_value(json.clone()).expect("a rollout should parse");
             assert_json_eq!(json, parsed);
         }

@@ -609,7 +609,7 @@ mod tests {
         asserting!("true for rule if rule.trackEvents is true")
             .that(&flag.is_experimentation_enabled(&RuleMatch {
                 rule_index: 0,
-                rule_id: flag.rules.get(0).unwrap().id.clone(),
+                rule_id: flag.rules.first().unwrap().id.clone(),
                 in_experiment: false,
             }))
             .is_true();
@@ -681,23 +681,23 @@ mod tests {
 
         flag.migration_settings = None;
         let without_migration_settings = serde_json::to_string_pretty(&flag).unwrap();
-        assert!(!without_migration_settings.contains("\"migrationSettings\""));
+        assert!(!without_migration_settings.contains("\"migration\""));
 
         flag.migration_settings = Some(MigrationFlagParameters { check_ratio: None });
         let without_empty_migration_settings = serde_json::to_string_pretty(&flag).unwrap();
-        assert!(!without_empty_migration_settings.contains("\"migrationSettings\""));
+        assert!(!without_empty_migration_settings.contains("\"migration\""));
 
         flag.migration_settings = Some(MigrationFlagParameters {
             check_ratio: Some(1),
         });
         let with_default_ratio = serde_json::to_string_pretty(&flag).unwrap();
-        assert!(!with_default_ratio.contains("\"migrationSettings\""));
+        assert!(!with_default_ratio.contains("\"migration\""));
 
         flag.migration_settings = Some(MigrationFlagParameters {
             check_ratio: Some(42),
         });
         let with_specific_ratio = serde_json::to_string_pretty(&flag).unwrap();
-        assert!(with_specific_ratio.contains("\"migrationSettings\": {"));
+        assert!(with_specific_ratio.contains("\"migration\": {"));
         assert!(with_specific_ratio.contains("\"checkRatio\": 42"));
     }
 }
