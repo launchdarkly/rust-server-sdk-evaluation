@@ -2,7 +2,7 @@ use super::attribute_reference::Reference;
 use crate::contexts::context_serde::ContextVariant;
 use crate::{AttributeValue, MultiContextBuilder};
 use itertools::Itertools;
-use log::{error, warn};
+use log::warn;
 use maplit::hashmap;
 use serde::de::Error;
 use serde::ser::SerializeMap;
