@@ -2,6 +2,26 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.0.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/1.2.0...2.0.0) (2024-07-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add exclude from summary field to flag ([#18](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/18))
+* Add migration and sampling ratio fields ([#17](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/17))
+
+### Features
+
+* Add exclude from summary field to flag ([#18](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/18)) ([ca935a3](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/ca935a31f9caca6001bffeb7bfd6adfafff7b755))
+* Add method to strip anonymous contexts ([#21](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/21)) ([f76faa6](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/f76faa685c7bc3494e0fcbeff04a8641277efc91))
+* Add migration and sampling ratio fields ([#17](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/17)) ([5e4e969](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/5e4e96940223bb3cc9f50b3ca45c5f4fa253c2db))
+* Add serialize trait to Detail ([#16](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/16)) ([683231e](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/683231ec193897e69773ccd6aaf780ea0805cbeb))
+
+
+### Bug Fixes
+
+* Bump msrv to 1.67.1 ([#22](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/22)) ([4b02096](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/4b02096ea3480b4ee5604e77f9838c4ae45d982d))
+
 ## [1.2.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/1.1.1...1.2.0) (2024-03-14)
 
 
