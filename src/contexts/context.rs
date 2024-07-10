@@ -1,6 +1,6 @@
 use super::attribute_reference::Reference;
 use crate::contexts::context_serde::ContextVariant;
-use crate::AttributeValue;
+use crate::{AttributeValue, MultiContextBuilder};
 use itertools::Itertools;
 use log::warn;
 use maplit::hashmap;
@@ -223,6 +223,29 @@ impl Context {
     /// Returns true if the context is a multi-context.
     pub fn is_multi(&self) -> bool {
         self.kind.is_multi()
+    }
+
+    /// For a multi-kind context:
+    ///
+    /// A multi-kind context is made up of two or more single-kind contexts. This method will first
+    /// discard any single-kind contexts which are anonymous. It will then create a new multi-kind
+    /// context from the remaining single-kind contexts. This may result in an invalid context
+    /// (e.g. all single-kind contexts are anonymous).
+    ///
+    /// For a single-kind context:
+    ///
+    /// If the context is not anonymous, this method will return the current context as is and
+    /// unmodified.
+    ///
+    /// If the context is anonymous, this method will return an `Err(String)` result.
+    pub fn without_anonymous_contexts(&self) -> Result<Context, String> {
+        let contexts = match &self.contexts {
+            Some(contexts) => contexts.clone(),
+            None => vec![self.clone()],
+        };
+        let contexts = contexts.into_iter().filter(|c| !c.anonymous).collect_vec();
+
+        MultiContextBuilder::of(contexts).build()
     }
 
     /// Looks up the value of any attribute of the context, or a value contained within an
@@ -1052,5 +1075,73 @@ mod tests {
         );
 
         assert!(multi_context.as_kind(&Kind::from("custom")).is_none());
+    }
+
+    #[test]
+    fn redacting_anon_from_anon_is_invalid() {
+        let anon_context = ContextBuilder::new("user")
+            .anonymous(true)
+            .build()
+            .expect("context build failed");
+        let result = anon_context.without_anonymous_contexts();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn redacting_anon_from_nonanon_results_in_no_change() {
+        let context = ContextBuilder::new("user")
+            .build()
+            .expect("context build failed");
+        let result = context.without_anonymous_contexts();
+
+        assert_eq!(context, result.unwrap());
+    }
+
+    #[test]
+    fn can_redact_anon_from_multi() {
+        let user_context = ContextBuilder::new("user")
+            .anonymous(true)
+            .build()
+            .expect("Failed to create context");
+        let org_context = ContextBuilder::new("org")
+            .kind("org")
+            .build()
+            .expect("Failed to create context");
+
+        let multi_context = MultiContextBuilder::new()
+            .add_context(user_context)
+            .add_context(org_context)
+            .build()
+            .expect("Failed to create context");
+
+        let context = multi_context
+            .without_anonymous_contexts()
+            .expect("Failed to redact anon");
+
+        assert_eq!("org", context.kind().as_ref());
+    }
+
+    #[test]
+    fn redact_anon_from_all_anon_multi_is_invalid() {
+        let user_context = ContextBuilder::new("user")
+            .anonymous(true)
+            .build()
+            .expect("Failed to create context");
+        let org_context = ContextBuilder::new("org")
+            .kind("org")
+            .anonymous(true)
+            .build()
+            .expect("Failed to create context");
+
+        let multi_context = MultiContextBuilder::new()
+            .add_context(user_context)
+            .add_context(org_context)
+            .build()
+            .expect("Failed to create context");
+
+        let context = multi_context.without_anonymous_contexts();
+
+        assert!(context.is_err());
     }
 }
