@@ -17,27 +17,27 @@ jobs:
         id: release
 
       - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
         with:
           fetch-depth: 0 # If you only need the current version keep this.
 
       - uses: ./.github/actions/tooling
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - uses: launchdarkly/gh-actions/actions/release-secrets@release-secrets-v1.2.0
         name: 'Get crates.io token'
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
         with:
           aws_assume_role: ${{ vars.AWS_ROLE_ARN }}
           ssm_parameter_pairs: '/production/common/releasing/cratesio/api_token = CARGO_REGISTRY_TOKEN'
 
       - uses: ./.github/actions/ci
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - uses: ./.github/actions/build-docs
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - uses: ./.github/actions/publish
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
         with:
           dry_run: false
