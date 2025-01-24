@@ -154,8 +154,10 @@ impl AttributeValue {
     }
 
     /// Attempt to convert any of the following into a chrono::DateTime in UTC:
+    ///
     ///  * RFC3339/ISO8601 timestamp (example: "2016-04-16T17:09:12.759-07:00")
     ///  * Unix epoch milliseconds as number
+    ///
     /// It will return None if the conversion fails or if no conversion is possible.
     pub fn to_datetime(&self) -> Option<chrono::DateTime<Utc>> {
         match self {

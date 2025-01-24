@@ -178,7 +178,7 @@ fn evaluate_internal<'a>(
     }
 
     let result = flag.resolve_variation_or_rollout(&flag.fallthrough, context);
-    return match result {
+    match result {
         Ok(BucketResult {
             variation_index,
             in_experiment,
@@ -187,7 +187,7 @@ fn evaluate_internal<'a>(
             flag.variation(variation_index, reason)
         }
         Err(e) => Detail::err(e),
-    };
+    }
 }
 
 fn any_target_match_variation(context: &Context, flag: &Flag) -> Option<VariationIndex> {

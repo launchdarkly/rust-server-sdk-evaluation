@@ -285,9 +285,9 @@ impl VariationOrRollout {
                         ));
                     }
                 }
-                return Ok(variations
+                Ok(variations
                     .last()
-                    .map(|var| var.as_bucket_result(is_experiment && !was_missing_context)));
+                    .map(|var| var.as_bucket_result(is_experiment && !was_missing_context)))
             }
             VariationOrRollout::Malformed(_) => Ok(None),
         }
