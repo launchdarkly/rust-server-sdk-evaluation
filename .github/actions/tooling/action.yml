@@ -7,6 +7,6 @@ runs:
     - name: Setup rust tooling
       shell: bash
       run: |
-        rustup override set 1.68
+        rustup override set 1.74.0
         rustup component add rustfmt clippy
         rustup target add wasm32-wasi
