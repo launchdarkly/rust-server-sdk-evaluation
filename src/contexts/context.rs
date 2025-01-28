@@ -309,7 +309,7 @@ impl Context {
     /// 1. For a single context of kind "user", the canonical key is equivalent to the key.
     /// 2. For other kinds of single contexts, the canonical key is "kind:key".
     /// 3. For a multi-context, the canonical key is the concatenation of its constituent contexts'
-    /// canonical keys with `:` according to (2) (including kind "user").
+    ///    canonical keys with `:` according to (2) (including kind "user").
     pub fn canonical_key(&self) -> &str {
         &self.canonical_key
     }
@@ -448,7 +448,7 @@ pub(crate) enum BucketPrefix<'a> {
     Seed(i64),
 }
 
-impl<'a> BucketPrefix<'a> {
+impl BucketPrefix<'_> {
     pub(crate) fn write_hash(&self, hash: &mut Sha1) {
         match self {
             BucketPrefix::KeyAndSalt(key, salt) => {
