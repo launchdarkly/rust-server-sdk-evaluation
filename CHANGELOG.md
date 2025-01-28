@@ -2,6 +2,16 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.0.1](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.0.0...2.0.1) (2025-01-28)
+
+
+### Bug Fixes
+
+* Bump MSRV to 1.74.0 ([#26](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/26)) ([44e5650](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/44e5650a42f51f24df99c4352989fc743fe2b2ce))
+* Update base16ct to v0.2.0 ([aac23e0](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/aac23e085469d5d07f1d8601da31c0c2cd5fe33c))
+* Update itertools to v0.14.0 ([aac23e0](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/aac23e085469d5d07f1d8601da31c0c2cd5fe33c))
+* Update serde_with to v3.12.0 ([aac23e0](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/aac23e085469d5d07f1d8601da31c0c2cd5fe33c))
+
 ## [2.0.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/1.2.0...2.0.0) (2024-07-10)
 
 
