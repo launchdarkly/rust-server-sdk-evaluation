@@ -113,7 +113,7 @@ impl From<&Value> for AttributeValue {
             Value::Number(n) => match n.as_f64() {
                 Some(float) => AttributeValue::Number(float),
                 None => {
-                    warn!("could not interpret '{:?}' as f64", n);
+                    warn!("could not interpret '{n:?}' as f64");
                     AttributeValue::String(n.to_string())
                 }
             },
@@ -172,10 +172,7 @@ impl AttributeValue {
                 .ok(),
             AttributeValue::Bool(_) | AttributeValue::Null => None,
             other => {
-                warn!(
-                    "Don't know how or whether to convert attribute value {:?} to datetime",
-                    other
-                );
+                warn!("Don't know how or whether to convert attribute value {other:?} to datetime");
                 None
             }
         }

@@ -275,10 +275,7 @@ impl Flag {
         let (value, variation_index) = match usize::try_from(index) {
             Ok(u) => (self.variations.get(u), Some(index)),
             Err(e) => {
-                warn!(
-                    "Flag variation index could not be converted to usize. {}",
-                    e
-                );
+                warn!("Flag variation index could not be converted to usize. {e}");
                 (None, None)
             }
         };
@@ -402,10 +399,9 @@ mod tests {
             "fallthrough": {{"variation": 1}},
             "offVariation": 0,
             "variations": [false, true],
-            "clientSide": {},
+            "clientSide": {client_side},
             "salt": "salty"
-        }}"#,
-            client_side
+        }}"#
         );
 
         let flag: Flag = serde_json::from_str(json).unwrap();
@@ -437,13 +433,12 @@ mod tests {
     false,
     true
   ],
-  "clientSide": {},
+  "clientSide": {client_side},
   "salt": "salty",
   "trackEvents": false,
   "trackEventsFallthrough": false,
   "debugEventsUntilDate": null
-}}"#,
-            client_side
+}}"#
         );
 
         let flag: Flag = serde_json::from_str(json).unwrap();
@@ -467,12 +462,11 @@ mod tests {
             "offVariation": 0,
             "variations": [false, true],
             "clientSideAvailability": {{
-                "usingEnvironmentId": {},
+                "usingEnvironmentId": {using_environment_id},
                 "usingMobileKey": false
             }},
             "salt": "salty"
-        }}"#,
-            using_environment_id
+        }}"#
         );
 
         let flag: Flag = serde_json::from_str(json).unwrap();
@@ -510,12 +504,11 @@ mod tests {
             "offVariation": 0,
             "variations": [false, true],
             "clientSideAvailability": {{
-                "usingEnvironmentId": {},
+                "usingEnvironmentId": {using_environment_id},
                 "usingMobileKey": false
             }},
             "salt": "salty"
-        }}"#,
-            using_environment_id
+        }}"#
         );
 
         let flag: Flag = serde_json::from_str(json).unwrap();
@@ -569,15 +562,14 @@ mod tests {
     true
   ],
   "clientSideAvailability": {{
-    "usingMobileKey": {},
-    "usingEnvironmentId": {}
+    "usingMobileKey": {using_environment_id},
+    "usingEnvironmentId": {using_mobile_key}
   }},
   "salt": "salty",
   "trackEvents": false,
   "trackEventsFallthrough": false,
   "debugEventsUntilDate": null
-}}"#,
-            using_environment_id, using_mobile_key
+}}"#
         );
 
         let flag: Flag = serde_json::from_str(json).unwrap();

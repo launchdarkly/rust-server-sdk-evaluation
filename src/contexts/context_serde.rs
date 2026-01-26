@@ -372,10 +372,10 @@ mod tests {
                     Ok(context) => {
                         assert_json_eq!(to, context);
                     }
-                    Err(e) => panic!("variant should convert to context without error: {:?}", e),
+                    Err(e) => panic!("variant should convert to context without error: {e:?}"),
                 }
             }
-            Err(e) => panic!("test JSON should parse without error: {:?}", e),
+            Err(e) => panic!("test JSON should parse without error: {e:?}"),
         }
     }
 
@@ -391,7 +391,7 @@ mod tests {
             Ok(context) => {
                 assert_json_eq!(from, context);
             }
-            Err(e) => panic!("test JSON should convert to context without error: {:?}", e),
+            Err(e) => panic!("test JSON should convert to context without error: {e:?}"),
         }
     }
 
@@ -402,7 +402,7 @@ mod tests {
     #[test_case(json!({"kind" : [], "key" : "e"}))]
     fn reject_null_or_non_string_kind(from: serde_json::Value) {
         match serde_json::from_value::<ContextVariant>(from) {
-            Err(e) => println!("{:?}", e),
+            Err(e) => println!("{e:?}"),
             Ok(c) => panic!(
                 "expected conversion to fail, but got: {:?}",
                 serde_json::to_string(&c)
@@ -425,7 +425,7 @@ mod tests {
     #[test_case(json!({"kind" : "user", "key" : ""}))]
     fn reject_invalid_contexts(from: serde_json::Value) {
         match serde_json::from_value::<Context>(from) {
-            Err(e) => println!("got expected error: {:?}", e),
+            Err(e) => println!("got expected error: {e:?}"),
             Ok(c) => panic!(
                 "expected conversion to fail, but got: {:?}",
                 serde_json::to_string(&c)
@@ -463,7 +463,7 @@ mod tests {
         });
 
         match serde_json::from_value::<ContextVariant>(json) {
-            Err(e) => panic!("expected user to deserialize without error: {:?}", e),
+            Err(e) => panic!("expected user to deserialize without error: {e:?}"),
             Ok(c) => match c {
                 ContextVariant::Implicit(user) => {
                     assert_eq!(user.ip.unwrap_or_default(), "b");
