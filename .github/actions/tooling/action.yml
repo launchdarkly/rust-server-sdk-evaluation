@@ -4,9 +4,14 @@ description: 'Install shared tooling'
 runs:
   using: composite
   steps:
+    - name: Get Rust version
+      id: rust-version
+      shell: bash
+      run: cat ./.github/variables/rust-versions.env >> $GITHUB_OUTPUT
+
     - name: Setup rust tooling
       shell: bash
       run: |
-        rustup override set 1.82.0
+        rustup override set ${{ steps.rust-version.outputs.target }}
         rustup component add rustfmt clippy
         rustup target add wasm32-wasi
