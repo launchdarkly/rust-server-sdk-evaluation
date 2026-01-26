@@ -275,9 +275,7 @@ impl Flag {
         let (value, variation_index) = match usize::try_from(index) {
             Ok(u) => (self.variations.get(u), Some(index)),
             Err(e) => {
-                warn!(
-                    "Flag variation index could not be converted to usize. {e}"
-                );
+                warn!("Flag variation index could not be converted to usize. {e}");
                 (None, None)
             }
         };

@@ -172,9 +172,7 @@ impl AttributeValue {
                 .ok(),
             AttributeValue::Bool(_) | AttributeValue::Null => None,
             other => {
-                warn!(
-                    "Don't know how or whether to convert attribute value {other:?} to datetime"
-                );
+                warn!("Don't know how or whether to convert attribute value {other:?} to datetime");
                 None
             }
         }

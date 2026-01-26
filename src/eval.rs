@@ -1649,10 +1649,7 @@ mod tests {
         } in cases
         {
             let json = serde_json::to_string(&reason).unwrap();
-            assert_eq!(
-                expected_json, json,
-                "unexpected serialization: {reason:?}"
-            );
+            assert_eq!(expected_json, json, "unexpected serialization: {reason:?}");
         }
     }
 
