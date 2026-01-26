@@ -51,8 +51,8 @@ impl From<serde_json::Value> for FlagValue {
                 if let Some(f) = n.as_f64() {
                     f.into()
                 } else {
-                    warn!("unrepresentable number {}, converting to string", n);
-                    FlagValue::Json(format!("{}", n).into())
+                    warn!("unrepresentable number {n}, converting to string");
+                    FlagValue::Json(format!("{n}").into())
                 }
             }
             Value::String(s) => s.into(),
@@ -68,7 +68,7 @@ impl FlagValue {
         match self {
             FlagValue::Bool(b) => Some(*b),
             _ => {
-                warn!("variation type is not bool but {:?}", self);
+                warn!("variation type is not bool but {self:?}");
                 None
             }
         }
@@ -80,7 +80,7 @@ impl FlagValue {
         match self {
             FlagValue::Str(s) => Some(s.clone()),
             _ => {
-                warn!("variation type is not str but {:?}", self);
+                warn!("variation type is not str but {self:?}");
                 None
             }
         }
@@ -92,7 +92,7 @@ impl FlagValue {
         match self {
             FlagValue::Number(f) => Some(*f),
             _ => {
-                warn!("variation type is not number but {:?}", self);
+                warn!("variation type is not number but {self:?}");
                 None
             }
         }
@@ -104,7 +104,7 @@ impl FlagValue {
         match self {
             FlagValue::Number(f) => f64_to_i64_safe(*f),
             _ => {
-                warn!("variation type is not number but {:?}", self);
+                warn!("variation type is not number but {self:?}");
                 None
             }
         }

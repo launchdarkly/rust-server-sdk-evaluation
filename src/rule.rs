@@ -341,7 +341,7 @@ impl Op {
             Op::Matches => string_op(lhs, rhs, |l, r| match Regex::new(r) {
                 Ok(re) => re.is_match(l),
                 Err(e) => {
-                    warn!("Invalid regex for 'matches' operator ({}): {}", e, l);
+                    warn!("Invalid regex for 'matches' operator ({e}): {l}");
                     false
                 }
             }),
@@ -526,18 +526,14 @@ mod tests {
         fn should_match(text: &str, pattern: &str) {
             assert!(
                 Op::Matches.matches(&astring(text), &astring(pattern)),
-                "`{}` should match `{}`",
-                text,
-                pattern
+                "`{text}` should match `{pattern}`"
             );
         }
 
         fn should_not_match(text: &str, pattern: &str) {
             assert!(
                 !Op::Matches.matches(&astring(text), &astring(pattern)),
-                "`{}` should not match `{}`",
-                text,
-                pattern
+                "`{text}` should not match `{pattern}`"
             );
         }
 
@@ -872,8 +868,7 @@ mod tests {
                         &mut evaluation_stack
                     )
                     .unwrap(),
-                "should match {}",
-                attr
+                "should match {attr}"
             );
             assert!(
                 !clause
@@ -883,8 +878,7 @@ mod tests {
                         &mut evaluation_stack
                     )
                     .unwrap(),
-                "should not match non-matching {}",
-                attr
+                "should not match non-matching {attr}"
             );
             if let Some(context_without_attribute) = test_case.context_without_attribute {
                 assert!(
@@ -895,8 +889,7 @@ mod tests {
                             &mut evaluation_stack
                         )
                         .unwrap(),
-                    "should not match user with null {}",
-                    attr
+                    "should not match user with null {attr}"
                 );
             }
         }
@@ -965,15 +958,13 @@ mod tests {
                 clause
                     .matches(&matching_context, &TestStore {}, &mut evaluation_stack)
                     .unwrap(),
-                "should match {}",
-                attr
+                "should match {attr}"
             );
             assert!(
                 !clause
                     .matches(&non_matching_context, &TestStore {}, &mut evaluation_stack)
                     .unwrap(),
-                "should not match non-matching {}",
-                attr
+                "should not match non-matching {attr}"
             );
             assert!(
                 !clause
@@ -983,8 +974,7 @@ mod tests {
                         &mut evaluation_stack
                     )
                     .unwrap(),
-                "should not match user with null {}",
-                attr
+                "should not match user with null {attr}"
             );
         }
     }

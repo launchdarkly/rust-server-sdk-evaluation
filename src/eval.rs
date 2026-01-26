@@ -153,7 +153,7 @@ fn evaluate_internal<'a>(
     for (rule_index, rule) in flag.rules.iter().enumerate() {
         match rule.matches(context, store, evaluation_stack) {
             Err(e) => {
-                warn!("{:?}", e);
+                warn!("{e:?}");
                 return Detail::err(Error::MalformedFlag);
             }
             Ok(matches) if matches => {
@@ -1651,8 +1651,7 @@ mod tests {
             let json = serde_json::to_string(&reason).unwrap();
             assert_eq!(
                 expected_json, json,
-                "unexpected serialization: {:?}",
-                reason
+                "unexpected serialization: {reason:?}"
             );
         }
     }
