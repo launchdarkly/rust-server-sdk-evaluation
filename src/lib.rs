@@ -16,6 +16,7 @@ mod rule;
 mod segment;
 mod store;
 mod test_common;
+mod test_data;
 mod util;
 mod variation;
 
@@ -29,6 +30,7 @@ pub use flag_value::*;
 pub use rule::*;
 pub use segment::*;
 pub use store::*;
+pub use test_data::*;
 pub use variation::*;
 
 /// Trait indicating that the item is versioned.

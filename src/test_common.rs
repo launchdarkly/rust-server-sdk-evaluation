@@ -3,6 +3,9 @@
 use crate::flag::Flag;
 use crate::segment::Segment;
 use crate::store::Store;
+use crate::test_data::FlagBuilder;
+use crate::AttributeValue;
+use crate::FlagValue;
 use crate::PrerequisiteEvent;
 use crate::PrerequisiteEventRecorder;
 use maplit::hashmap;
@@ -18,23 +21,12 @@ impl TestStore {
     pub fn new() -> Self {
         Self {
             flags: hashmap! {
-                "flag".to_string() => serde_json::from_str(r#"{
-                        "key": "flag",
-                        "version": 42,
-                        "on": false,
-                        "targets": [],
-                        "rules": [],
-                        "prerequisites": [],
-                        "fallthrough": {"variation": 1},
-                        "offVariation": 0,
-                        "variations": [false, true],
-                        "clientSide": true,
-                        "clientSideAvailability": {
-                            "usingEnvironmentId": true,
-                            "usingMobileKey": true
-                        },
-                        "salt": "salty"
-                    }"#).unwrap(),
+                "flag".to_string() => FlagBuilder::new("flag")
+                    .on(false)
+                    .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])
+                    .fallthrough_variation_index(1)
+                    .off_variation_index(0)
+                    .build(),
                 "flagWithRuleExclusion".to_string() => serde_json::from_str(r#"{
                         "key": "flag",
                         "version": 42,
@@ -360,26 +352,13 @@ impl TestStore {
                         "debugEventsUntilDate": null,
                         "version": 7
                     }"#).unwrap(),
-                "flagWithTarget".to_string() => serde_json::from_str(r#"{
-                        "key": "flagWithTarget",
-                        "version": 42,
-                        "on": false,
-                        "targets": [{
-                            "values": ["bob"],
-                            "variation": 0
-                        }],
-                        "rules": [],
-                        "prerequisites": [],
-                        "fallthrough": {"variation": 1},
-                        "offVariation": 0,
-                        "variations": [false, true],
-                        "clientSide": true,
-                        "clientSideAvailability": {
-                            "usingEnvironmentId": true,
-                            "usingMobileKey": true
-                        },
-                        "salt": "salty"
-                    }"#).unwrap(),
+                "flagWithTarget".to_string() => FlagBuilder::new("flagWithTarget")
+                    .on(false)
+                    .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])
+                    .variation_index_for_user("bob", 0)
+                    .fallthrough_variation_index(1)
+                    .off_variation_index(0)
+                    .build(),
                 "flagWithContextTarget".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithContextTarget",
                         "version": 42,
@@ -513,6 +492,7 @@ impl TestStore {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
+                // Keeping as JSON - requires excludeFromSummaries field not supported by builder
                 "prereq".to_string() => serde_json::from_str(r#"{
                         "key": "prereq",
                         "version": 42,
@@ -534,50 +514,21 @@ impl TestStore {
                         "salt": "salty",
                         "excludeFromSummaries": true
                     }"#).unwrap(),
-                "offPrereq".to_string() => serde_json::from_str(r#"{
-                        "key": "offPrereq",
-                        "version": 42,
-                        "on": false,
-                        "targets": [],
-                        "rules": [],
-                        "prerequisites": [],
-                        "fallthrough": {"variation": 1},
-                        "offVariation": 1,
-                        "variations": [false, true],
-                        "clientSide": true,
-                        "clientSideAvailability": {
-                            "usingEnvironmentId": true,
-                            "usingMobileKey": true
-                        },
-                        "salt": "salty"
-                    }"#).unwrap(),
-                "flagWithInRule".to_string() => serde_json::from_str(r#"{
-                        "key": "flagWithInRule",
-                        "version": 42,
-                        "on": false,
-                        "targets": [],
-                        "rules": [{
-                            "id": "in-rule",
-                            "clauses": [{
-                                "attribute": "team",
-                                "negate": false,
-                                "op": "in",
-                                "values": ["Avengers"]
-                            }],
-                            "variation": 0,
-                            "trackEvents": false
-                        }],
-                        "prerequisites": [],
-                        "fallthrough": {"variation": 1},
-                        "offVariation": 0,
-                        "variations": [false, true],
-                        "clientSide": true,
-                        "clientSideAvailability": {
-                            "usingEnvironmentId": true,
-                            "usingMobileKey": true
-                        },
-                        "salt": "salty"
-                    }"#).unwrap(),
+                "offPrereq".to_string() => FlagBuilder::new("offPrereq")
+                    .on(false)
+                    .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])
+                    .fallthrough_variation_index(1)
+                    .off_variation_index(1)
+                    .build(),
+                "flagWithInRule".to_string() => FlagBuilder::new("flagWithInRule")
+                    .on(false)
+                    .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])
+                    .if_match("team", vec![AttributeValue::String("Avengers".to_string())])
+                    .with_id("in-rule")
+                    .then_return_index(0)
+                    .fallthrough_variation_index(1)
+                    .off_variation_index(0)
+                    .build(),
                 "flagWithSegmentMatchRule".to_string() => serde_json::from_str(r#"{
                         "key": "flagWithSegmentMatchRule",
                         "version": 42,
