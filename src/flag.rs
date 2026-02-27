@@ -143,17 +143,11 @@ impl MigrationFlagParameters {
 }
 
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub(crate) struct ClientVisibility {
     pub(crate) client_side_availability: ClientSideAvailability,
 }
 
-impl Default for ClientVisibility {
-    fn default() -> Self {
-        Self {
-            client_side_availability: ClientSideAvailability::default(),
-        }
-    }
-}
 
 impl<'de> Deserialize<'de> for ClientVisibility {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -261,6 +255,7 @@ pub(crate) struct Target {
 /// bootstrapped set of flag data (see [Bootstrapping the Javascript SDK](https://docs.launchdarkly.com/sdk/client-side/javascript#bootstrapping)).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct ClientSideAvailability {
     /// Indicates that this flag is available to clients using the mobile key for
     /// authorization (includes most desktop and mobile clients).
@@ -277,15 +272,6 @@ pub struct ClientSideAvailability {
     explicit: bool,
 }
 
-impl Default for ClientSideAvailability {
-    fn default() -> Self {
-        Self {
-            using_mobile_key: false,
-            using_environment_id: false,
-            explicit: false,
-        }
-    }
-}
 
 impl Flag {
     /// Generate a [crate::Detail] response with the given variation and reason.
