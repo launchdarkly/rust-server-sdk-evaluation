@@ -4,8 +4,6 @@
 //! without needing to connect to LaunchDarkly services. These builders are intended for use in
 //! test scenarios and local development.
 
-use std::sync::{Arc, Mutex};
-
 use crate::{
     contexts::context::Kind, flag::Target, flag_value::FlagValue, rule::Clause, rule::FlagRule,
     AttributeValue, Flag,
@@ -16,13 +14,7 @@ use crate::{
 /// The flag builder provides a fluent API for creating flags with targeting rules,
 /// variations, and other configuration options. This is the primary way to create
 /// test flags for use in testing and development scenarios.
-#[derive(Clone, Debug)]
 pub struct FlagBuilder {
-    inner: Arc<Mutex<FlagBuilderInner>>,
-}
-
-#[derive(Clone, Debug)]
-struct FlagBuilderInner {
     key: String,
     on: bool,
     variations: Vec<FlagValue>,
@@ -44,17 +36,15 @@ impl FlagBuilder {
     /// - Off variation: 1 (false)
     pub fn new(key: impl Into<String>) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(FlagBuilderInner {
-                key: key.into(),
-                on: true,
-                variations: vec![FlagValue::Bool(true), FlagValue::Bool(false)],
-                fallthrough_variation: 0,
-                off_variation: 1,
-                targets: vec![],
-                rules: vec![],
-                sampling_ratio: None,
-                exclude_from_summaries: false,
-            })),
+            key: key.into(),
+            on: true,
+            variations: vec![FlagValue::Bool(true), FlagValue::Bool(false)],
+            fallthrough_variation: 0,
+            off_variation: 1,
+            targets: vec![],
+            rules: vec![],
+            sampling_ratio: None,
+            exclude_from_summaries: false,
         }
     }
 
@@ -64,23 +54,19 @@ impl FlagBuilder {
     /// - Variations: [true, false]
     /// - Fallthrough variation: 0 (true)
     /// - Off variation: 1 (false)
-    pub fn boolean_flag(self) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.variations = vec![FlagValue::Bool(true), FlagValue::Bool(false)];
-        inner.fallthrough_variation = 0;
-        inner.off_variation = 1;
-        drop(inner);
+    pub fn boolean_flag(mut self) -> Self {
+        self.variations = vec![FlagValue::Bool(true), FlagValue::Bool(false)];
+        self.fallthrough_variation = 0;
+        self.off_variation = 1;
         self
     }
 
     /// Sets the variations for this flag.
-    pub fn variations<I>(self, variations: I) -> Self
+    pub fn variations<I>(mut self, variations: I) -> Self
     where
         I: IntoIterator<Item = FlagValue>,
     {
-        let mut inner = self.inner.lock().unwrap();
-        inner.variations = variations.into_iter().collect();
-        drop(inner);
+        self.variations = variations.into_iter().collect();
         self
     }
 
@@ -88,10 +74,8 @@ impl FlagBuilder {
     ///
     /// When targeting is off (false), the flag returns the off variation regardless
     /// of other configuration.
-    pub fn on(self, on: bool) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.on = on;
-        drop(inner);
+    pub fn on(mut self, on: bool) -> Self {
+        self.on = on;
         self
     }
 
@@ -106,10 +90,8 @@ impl FlagBuilder {
     /// Sets the fallthrough variation by index.
     ///
     /// The fallthrough variation is returned when targeting is on but no targets or rules match.
-    pub fn fallthrough_variation_index(self, index: usize) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.fallthrough_variation = index;
-        drop(inner);
+    pub fn fallthrough_variation_index(mut self, index: usize) -> Self {
+        self.fallthrough_variation = index;
         self
     }
 
@@ -124,10 +106,8 @@ impl FlagBuilder {
     /// Sets the off variation by index.
     ///
     /// The off variation is returned when targeting is disabled (on: false).
-    pub fn off_variation_index(self, index: usize) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.off_variation = index;
-        drop(inner);
+    pub fn off_variation_index(mut self, index: usize) -> Self {
+        self.off_variation = index;
         self
     }
 
@@ -137,13 +117,11 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets the fallthrough variation to the specified value
-    pub fn variation_for_all(self, value: bool) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.on = true;
-        inner.targets.clear();
-        inner.rules.clear();
-        inner.fallthrough_variation = if value { 0 } else { 1 };
-        drop(inner);
+    pub fn variation_for_all(mut self, value: bool) -> Self {
+        self.on = true;
+        self.targets.clear();
+        self.rules.clear();
+        self.fallthrough_variation = if value { 0 } else { 1 };
         self
     }
 
@@ -153,13 +131,11 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets the fallthrough variation to the specified index
-    pub fn variation_for_all_index(self, index: usize) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.on = true;
-        inner.targets.clear();
-        inner.rules.clear();
-        inner.fallthrough_variation = index;
-        drop(inner);
+    pub fn variation_for_all_index(mut self, index: usize) -> Self {
+        self.on = true;
+        self.targets.clear();
+        self.rules.clear();
+        self.fallthrough_variation = index;
         self
     }
 
@@ -170,15 +146,13 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets both fallthrough and off variation to index 0
-    pub fn value_for_all(self, value: FlagValue) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.variations = vec![value];
-        inner.on = true;
-        inner.targets.clear();
-        inner.rules.clear();
-        inner.fallthrough_variation = 0;
-        inner.off_variation = 0;
-        drop(inner);
+    pub fn value_for_all(mut self, value: FlagValue) -> Self {
+        self.variations = vec![value];
+        self.on = true;
+        self.targets.clear();
+        self.rules.clear();
+        self.fallthrough_variation = 0;
+        self.off_variation = 0;
         self
     }
 
@@ -203,7 +177,7 @@ impl FlagBuilder {
     ///
     /// This is a convenience method for targeting contexts with kind: "user".
     pub fn variation_index_for_user(self, user_key: impl Into<String>, variation: usize) -> Self {
-        self.variation_index_for_key(Kind::user(), user_key.into(), variation)
+        self.variation_index_for_key(Kind::user(), user_key, variation)
     }
 
     /// Configures the flag to return a specific variation index for a context of any kind.
@@ -212,23 +186,22 @@ impl FlagBuilder {
     /// for any other variation of the same flag (a key can only be targeted for one
     /// variation at a time).
     pub fn variation_index_for_key(
-        self,
+        mut self,
         context_kind: Kind,
         key: impl Into<String>,
         variation: usize,
     ) -> Self {
         let key = key.into();
-        let mut inner = self.inner.lock().unwrap();
 
         // Remove the key from all existing targets for this context kind
-        for target in &mut inner.targets {
+        for target in &mut self.targets {
             if target.context_kind == context_kind {
                 target.values.retain(|k| k != &key);
             }
         }
 
         // Find or create target for this variation and context kind
-        let target = inner
+        let target = self
             .targets
             .iter_mut()
             .find(|t| t.variation == variation as isize && t.context_kind == context_kind);
@@ -238,22 +211,19 @@ impl FlagBuilder {
                 target.values.push(key);
             }
         } else {
-            inner.targets.push(Target {
+            self.targets.push(Target {
                 context_kind,
                 values: vec![key],
                 variation: variation as isize,
             });
         }
 
-        drop(inner);
         self
     }
 
     /// Removes all individual context targets from the flag.
-    pub fn clear_targets(self) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.targets.clear();
-        drop(inner);
+    pub fn clear_targets(mut self) -> Self {
+        self.targets.clear();
         self
     }
 
@@ -309,26 +279,20 @@ impl FlagBuilder {
     }
 
     /// Removes all rules from the flag.
-    pub fn clear_rules(self) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.rules.clear();
-        drop(inner);
+    pub fn clear_rules(mut self) -> Self {
+        self.rules.clear();
         self
     }
 
     /// Sets the event sampling ratio for the flag.
-    pub fn sampling_ratio(self, ratio: u32) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.sampling_ratio = Some(ratio);
-        drop(inner);
+    pub fn sampling_ratio(mut self, ratio: u32) -> Self {
+        self.sampling_ratio = Some(ratio);
         self
     }
 
     /// Sets whether the flag should be excluded from summary event counts.
-    pub fn exclude_from_summaries(self, exclude: bool) -> Self {
-        let mut inner = self.inner.lock().unwrap();
-        inner.exclude_from_summaries = exclude;
-        drop(inner);
+    pub fn exclude_from_summaries(mut self, exclude: bool) -> Self {
+        self.exclude_from_summaries = exclude;
         self
     }
 
@@ -336,39 +300,32 @@ impl FlagBuilder {
     ///
     /// This method creates a complete Flag with all configured settings.
     pub fn build(self) -> Flag {
-        let inner = self.inner.lock().unwrap();
-
         // Construct JSON and deserialize to avoid dealing with private fields
         let mut json = serde_json::json!({
-            "key": inner.key,
+            "key": self.key,
             "version": 1,
-            "on": inner.on,
-            "targets": inner.targets,
+            "on": self.on,
+            "targets": self.targets,
             "contextTargets": [],
-            "rules": inner.rules,
+            "rules": self.rules,
             "prerequisites": [],
-            "fallthrough": { "variation": inner.fallthrough_variation },
-            "offVariation": inner.off_variation,
-            "variations": inner.variations,
+            "fallthrough": { "variation": self.fallthrough_variation },
+            "offVariation": self.off_variation,
+            "variations": self.variations,
             "clientSide": false,
             "salt": "",
             "trackEvents": false,
             "trackEventsFallthrough": false,
         });
 
-        if let Some(ratio) = inner.sampling_ratio {
+        if let Some(ratio) = self.sampling_ratio {
             json["samplingRatio"] = serde_json::json!(ratio);
         }
-        if inner.exclude_from_summaries {
+        if self.exclude_from_summaries {
             json["excludeFromSummaries"] = serde_json::json!(true);
         }
 
         serde_json::from_value(json).expect("Failed to build flag from valid JSON")
-    }
-
-    fn add_rule(&self, rule: FlagRule) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.rules.push(rule);
     }
 }
 
@@ -514,12 +471,9 @@ impl RuleBuilder {
     ///
     /// This method adds the completed rule to the flag and returns control to the flag builder.
     pub fn then_return_index(self, variation: usize) -> FlagBuilder {
-        let rule_id = self.rule_id.unwrap_or_else(|| {
-            format!(
-                "rule{}",
-                self.flag_builder.inner.lock().unwrap().rules.len()
-            )
-        });
+        let rule_id = self
+            .rule_id
+            .unwrap_or_else(|| format!("rule{}", self.flag_builder.rules.len()));
 
         let rule_json = serde_json::json!({
             "id": rule_id,
@@ -531,8 +485,9 @@ impl RuleBuilder {
         let rule: FlagRule =
             serde_json::from_value(rule_json).expect("Failed to create rule from valid JSON");
 
-        self.flag_builder.add_rule(rule);
-        self.flag_builder
+        let mut flag_builder = self.flag_builder;
+        flag_builder.rules.push(rule);
+        flag_builder
     }
 }
 
