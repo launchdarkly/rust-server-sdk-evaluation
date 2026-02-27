@@ -492,28 +492,14 @@ impl TestStore {
                         },
                         "salt": "salty"
                     }"#).unwrap(),
-                // Keeping as JSON - requires excludeFromSummaries field not supported by builder
-                "prereq".to_string() => serde_json::from_str(r#"{
-                        "key": "prereq",
-                        "version": 42,
-                        "on": true,
-                        "targets": [{
-                            "values": ["bob"],
-                            "variation": 0
-                        }],
-                        "rules": [],
-                        "prerequisites": [],
-                        "fallthrough": {"variation": 1},
-                        "offVariation": 0,
-                        "variations": [false, true],
-                        "clientSide": true,
-                        "clientSideAvailability": {
-                            "usingEnvironmentId": true,
-                            "usingMobileKey": true
-                        },
-                        "salt": "salty",
-                        "excludeFromSummaries": true
-                    }"#).unwrap(),
+                "prereq".to_string() => FlagBuilder::new("prereq")
+                    .on(true)
+                    .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])
+                    .variation_index_for_user("bob", 0)
+                    .fallthrough_variation_index(1)
+                    .off_variation_index(0)
+                    .exclude_from_summaries(true)
+                    .build(),
                 "offPrereq".to_string() => FlagBuilder::new("offPrereq")
                     .on(false)
                     .variations(vec![FlagValue::Bool(false), FlagValue::Bool(true)])

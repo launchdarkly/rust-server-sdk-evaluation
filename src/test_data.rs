@@ -30,6 +30,8 @@ struct FlagBuilderInner {
     off_variation: isize,
     targets: Vec<Target>,
     rules: Vec<FlagRule>,
+    sampling_ratio: Option<u32>,
+    exclude_from_summaries: bool,
 }
 
 impl FlagBuilder {
@@ -54,6 +56,8 @@ impl FlagBuilder {
                 off_variation: 1,
                 targets: vec![],
                 rules: vec![],
+                sampling_ratio: None,
+                exclude_from_summaries: false,
             })),
         }
     }
@@ -377,6 +381,28 @@ impl FlagBuilder {
         self
     }
 
+    /// Sets the event sampling ratio for the flag.
+    ///
+    /// # Spec Coverage
+    /// - TDS-1.3.14: SamplingRatio method (optional)
+    pub fn sampling_ratio(self, ratio: u32) -> Self {
+        let mut inner = self.inner.lock().unwrap();
+        inner.sampling_ratio = Some(ratio);
+        drop(inner);
+        self
+    }
+
+    /// Sets whether the flag should be excluded from summary event counts.
+    ///
+    /// # Spec Coverage
+    /// - TDS-1.3.15: ExcludeFromSummaries method (optional)
+    pub fn exclude_from_summaries(self, exclude: bool) -> Self {
+        let mut inner = self.inner.lock().unwrap();
+        inner.exclude_from_summaries = exclude;
+        drop(inner);
+        self
+    }
+
     /// Builds the final Flag instance.
     ///
     /// This method creates a complete Flag with all configured settings.
@@ -384,7 +410,7 @@ impl FlagBuilder {
         let inner = self.inner.lock().unwrap();
 
         // Construct JSON and deserialize to avoid dealing with private fields
-        let json = serde_json::json!({
+        let mut json = serde_json::json!({
             "key": inner.key,
             "version": 1,
             "on": inner.on,
@@ -400,6 +426,13 @@ impl FlagBuilder {
             "trackEvents": false,
             "trackEventsFallthrough": false,
         });
+
+        if let Some(ratio) = inner.sampling_ratio {
+            json["samplingRatio"] = serde_json::json!(ratio);
+        }
+        if inner.exclude_from_summaries {
+            json["excludeFromSummaries"] = serde_json::json!(true);
+        }
 
         serde_json::from_value(json).expect("Failed to build flag from valid JSON")
     }
@@ -1234,5 +1267,35 @@ mod tests {
         let ca_flag = store.flag("test-flag").unwrap();
         let ca_result = evaluate(&store, &ca_flag, &ca_context, None);
         assert_eq!(ca_result.value, Some(&FlagValue::Bool(true))); // fallthrough
+    }
+
+    /// TDS-1.3.14: SamplingRatio sets event sampling ratio
+    #[test]
+    fn sampling_ratio_sets_ratio() {
+        let flag = FlagBuilder::new("test-flag").sampling_ratio(10000).build();
+        assert_eq!(flag.sampling_ratio, Some(10000));
+    }
+
+    /// TDS-1.3.14: SamplingRatio defaults to None when not set
+    #[test]
+    fn sampling_ratio_defaults_to_none() {
+        let flag = FlagBuilder::new("test-flag").build();
+        assert_eq!(flag.sampling_ratio, None);
+    }
+
+    /// TDS-1.3.15: ExcludeFromSummaries sets exclusion flag
+    #[test]
+    fn exclude_from_summaries_sets_exclusion() {
+        let flag = FlagBuilder::new("test-flag")
+            .exclude_from_summaries(true)
+            .build();
+        assert!(flag.exclude_from_summaries);
+    }
+
+    /// TDS-1.3.15: ExcludeFromSummaries defaults to false
+    #[test]
+    fn exclude_from_summaries_defaults_to_false() {
+        let flag = FlagBuilder::new("test-flag").build();
+        assert!(!flag.exclude_from_summaries);
     }
 }
