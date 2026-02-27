@@ -42,10 +42,6 @@ impl FlagBuilder {
     /// - Targeting enabled (on: true)
     /// - Fallthrough variation: 0 (true)
     /// - Off variation: 1 (false)
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.1: Flag method accepts key and returns builder
-    /// - TDS-1.3.3: New flags default to boolean configuration
     pub fn new(key: impl Into<String>) -> Self {
         Self {
             inner: Arc::new(Mutex::new(FlagBuilderInner {
@@ -68,9 +64,6 @@ impl FlagBuilder {
     /// - Variations: [true, false]
     /// - Fallthrough variation: 0 (true)
     /// - Off variation: 1 (false)
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.4: BooleanFlag method configures boolean flag
     pub fn boolean_flag(self) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.variations = vec![FlagValue::Bool(true), FlagValue::Bool(false)];
@@ -81,9 +74,6 @@ impl FlagBuilder {
     }
 
     /// Sets the variations for this flag.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.5: Variations method sets flag variations
     pub fn variations<I>(self, variations: I) -> Self
     where
         I: IntoIterator<Item = FlagValue>,
@@ -98,9 +88,6 @@ impl FlagBuilder {
     ///
     /// When targeting is off (false), the flag returns the off variation regardless
     /// of other configuration.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.6: On method sets targeting enabled state
     pub fn on(self, on: bool) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.on = on;
@@ -112,9 +99,6 @@ impl FlagBuilder {
     ///
     /// This is a convenience method equivalent to calling `fallthrough_variation_index`
     /// with 0 for true or 1 for false.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.7: FallthroughVariation convenience method for boolean flags
     pub fn fallthrough_variation(self, value: bool) -> Self {
         self.fallthrough_variation_index(if value { 0 } else { 1 })
     }
@@ -122,9 +106,6 @@ impl FlagBuilder {
     /// Sets the fallthrough variation by index.
     ///
     /// The fallthrough variation is returned when targeting is on but no targets or rules match.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.8: FallthroughVariationIndex sets fallthrough by index
     pub fn fallthrough_variation_index(self, index: isize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.fallthrough_variation = index;
@@ -136,9 +117,6 @@ impl FlagBuilder {
     ///
     /// This is a convenience method equivalent to calling `off_variation_index`
     /// with 0 for true or 1 for false.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.9: OffVariation convenience method for boolean flags
     pub fn off_variation(self, value: bool) -> Self {
         self.off_variation_index(if value { 0 } else { 1 })
     }
@@ -146,9 +124,6 @@ impl FlagBuilder {
     /// Sets the off variation by index.
     ///
     /// The off variation is returned when targeting is disabled (on: false).
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.10: OffVariationIndex sets off variation by index
     pub fn off_variation_index(self, index: isize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.off_variation = index;
@@ -162,9 +137,6 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets the fallthrough variation to the specified value
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.11: VariationForAll convenience method for boolean flags
     pub fn variation_for_all(self, value: bool) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.on = true;
@@ -181,9 +153,6 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets the fallthrough variation to the specified index
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.12: VariationForAllIndex for non-boolean flags
     pub fn variation_for_all_index(self, index: isize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.on = true;
@@ -201,9 +170,6 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets both fallthrough and off variation to index 0
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.13: ValueForAll convenience method (optional)
     pub fn value_for_all(self, value: FlagValue) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.variations = vec![value];
@@ -219,17 +185,11 @@ impl FlagBuilder {
     /// Configures the flag to return a specific boolean value for a user context.
     ///
     /// This is a convenience method for targeting contexts with kind: "user".
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.4.1: VariationForUser targets user contexts
     pub fn variation_for_user(self, user_key: impl Into<String>, variation: bool) -> Self {
         self.variation_index_for_key(Kind::user(), user_key.into(), if variation { 0 } else { 1 })
     }
 
     /// Configures the flag to return a specific boolean value for a context of any kind.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.4.2: VariationForKey targets contexts of any kind
     pub fn variation_for_key(
         self,
         context_kind: Kind,
@@ -242,9 +202,6 @@ impl FlagBuilder {
     /// Configures the flag to return a specific variation index for a user context.
     ///
     /// This is a convenience method for targeting contexts with kind: "user".
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.4.3: VariationIndexForUser for user contexts
     pub fn variation_index_for_user(self, user_key: impl Into<String>, variation: isize) -> Self {
         self.variation_index_for_key(Kind::user(), user_key.into(), variation)
     }
@@ -254,10 +211,6 @@ impl FlagBuilder {
     /// When a context key is targeted, that key is automatically removed from targeting
     /// for any other variation of the same flag (a key can only be targeted for one
     /// variation at a time).
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.4.4: VariationIndexForKey for any context kind
-    /// - TDS-1.4.6: Context key removed from other variation targets
     pub fn variation_index_for_key(
         self,
         context_kind: Kind,
@@ -297,9 +250,6 @@ impl FlagBuilder {
     }
 
     /// Removes all individual context targets from the flag.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.4.7: ClearTargets method (optional)
     pub fn clear_targets(self) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.targets.clear();
@@ -311,9 +261,6 @@ impl FlagBuilder {
     ///
     /// This is a convenience method for creating rules that target contexts with kind: "user".
     /// Returns a RuleBuilder that can be used to add more conditions or complete the rule.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.1: IfMatch creates rule for user contexts
     pub fn if_match<I>(self, attribute: impl Into<String>, values: I) -> RuleBuilder
     where
         I: IntoIterator<Item = AttributeValue>,
@@ -325,9 +272,6 @@ impl FlagBuilder {
     /// for a context of the specified kind.
     ///
     /// Returns a RuleBuilder that can be used to add more conditions or complete the rule.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.2: IfMatchContext creates rule for any context kind
     pub fn if_match_context<I>(
         self,
         context_kind: Kind,
@@ -343,9 +287,6 @@ impl FlagBuilder {
     /// Creates a rule that matches when the specified user attribute does NOT equal any of the provided values.
     ///
     /// This is identical to `if_match` except it uses negated logic.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.3: IfNotMatch for negated user context matching
     pub fn if_not_match<I>(self, attribute: impl Into<String>, values: I) -> RuleBuilder
     where
         I: IntoIterator<Item = AttributeValue>,
@@ -355,9 +296,6 @@ impl FlagBuilder {
 
     /// Creates a rule that matches when the specified attribute does NOT equal any of the provided values
     /// for a context of the specified kind.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.4: IfNotMatchContext for negated context matching
     pub fn if_not_match_context<I>(
         self,
         context_kind: Kind,
@@ -371,9 +309,6 @@ impl FlagBuilder {
     }
 
     /// Removes all rules from the flag.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.13: ClearRules method (optional)
     pub fn clear_rules(self) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.rules.clear();
@@ -382,9 +317,6 @@ impl FlagBuilder {
     }
 
     /// Sets the event sampling ratio for the flag.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.14: SamplingRatio method (optional)
     pub fn sampling_ratio(self, ratio: u32) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.sampling_ratio = Some(ratio);
@@ -393,9 +325,6 @@ impl FlagBuilder {
     }
 
     /// Sets whether the flag should be excluded from summary event counts.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.3.15: ExcludeFromSummaries method (optional)
     pub fn exclude_from_summaries(self, exclude: bool) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.exclude_from_summaries = exclude;
@@ -488,9 +417,6 @@ impl RuleBuilder {
     /// Adds another clause to the current rule for user contexts.
     ///
     /// Multiple clauses in a rule have AND semantics - all must match for the rule to match.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.5: AndMatch adds clause for user contexts
     pub fn and_match<I>(self, attribute: impl Into<String>, values: I) -> Self
     where
         I: IntoIterator<Item = AttributeValue>,
@@ -501,9 +427,6 @@ impl RuleBuilder {
     /// Adds another clause to the current rule for a context of the specified kind.
     ///
     /// Multiple clauses in a rule have AND semantics - all must match for the rule to match.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.6: AndMatchContext adds clause for any context kind
     pub fn and_match_context<I>(
         mut self,
         context_kind: Kind,
@@ -534,9 +457,6 @@ impl RuleBuilder {
     /// Adds a negated clause to the current rule for user contexts.
     ///
     /// The clause must NOT match any of the values for the rule to match.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.7: AndNotMatch adds negated clause for user contexts
     pub fn and_not_match<I>(self, attribute: impl Into<String>, values: I) -> Self
     where
         I: IntoIterator<Item = AttributeValue>,
@@ -547,9 +467,6 @@ impl RuleBuilder {
     /// Adds a negated clause to the current rule for a context of the specified kind.
     ///
     /// The clause must NOT match any of the values for the rule to match.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.8: AndNotMatchContext adds negated clause for any context kind
     pub fn and_not_match_context<I>(
         mut self,
         context_kind: Kind,
@@ -589,9 +506,6 @@ impl RuleBuilder {
     /// Completes the rule configuration for a boolean flag.
     ///
     /// This method adds the completed rule to the flag and returns control to the flag builder.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.9: ThenReturn completes rule for boolean flags
     pub fn then_return(self, variation: bool) -> FlagBuilder {
         self.then_return_index(if variation { 0 } else { 1 })
     }
@@ -599,11 +513,6 @@ impl RuleBuilder {
     /// Completes the rule configuration with a variation index.
     ///
     /// This method adds the completed rule to the flag and returns control to the flag builder.
-    ///
-    /// # Spec Coverage
-    /// - TDS-1.5.10: ThenReturnIndex completes rule with variation index
-    /// - TDS-1.5.11: Rules evaluated in order they were added
-    /// - TDS-1.5.12: Rules evaluated after targets and before fallthrough
     pub fn then_return_index(self, variation: isize) -> FlagBuilder {
         let rule_id = self.rule_id.unwrap_or_else(|| {
             format!(
@@ -647,7 +556,6 @@ mod tests {
         }
     }
 
-    /// TDS-1.3.1, TDS-1.3.3: New flag has boolean defaults
     #[test]
     fn new_flag_has_boolean_defaults() {
         let flag = FlagBuilder::new("test-flag").build();
@@ -666,7 +574,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.3.4: BooleanFlag method configures boolean flag
     #[test]
     fn boolean_flag_resets_to_boolean_config() {
         let flag = FlagBuilder::new("test-flag")
@@ -689,7 +596,6 @@ mod tests {
         assert_eq!(flag.off_variation, Some(1));
     }
 
-    /// TDS-1.3.5: Variations method sets flag variations
     #[test]
     fn variations_sets_custom_variations() {
         let flag = FlagBuilder::new("test-flag")
@@ -711,7 +617,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Str("red".to_string())));
     }
 
-    /// TDS-1.3.6: On method sets targeting enabled state
     #[test]
     fn on_method_sets_targeting_state() {
         let flag_on = FlagBuilder::new("test-flag").on(true).build();
@@ -721,7 +626,6 @@ mod tests {
         assert_eq!(flag_off.on, false);
     }
 
-    /// TDS-1.3.7: FallthroughVariation for boolean flags
     #[test]
     fn fallthrough_variation_sets_boolean_fallthrough() {
         let flag_true = FlagBuilder::new("test-flag")
@@ -741,7 +645,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.3.8: FallthroughVariationIndex sets fallthrough by index
     #[test]
     fn fallthrough_variation_index_sets_index() {
         let flag = FlagBuilder::new("test-flag")
@@ -753,7 +656,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.3.9: OffVariation for boolean flags
     #[test]
     fn off_variation_sets_boolean_off() {
         let flag_true = FlagBuilder::new("test-flag").off_variation(true).build();
@@ -763,14 +665,12 @@ mod tests {
         assert_eq!(flag_false.off_variation, Some(1));
     }
 
-    /// TDS-1.3.10: OffVariationIndex sets off variation by index
     #[test]
     fn off_variation_index_sets_index() {
         let flag = FlagBuilder::new("test-flag").off_variation_index(2).build();
         assert_eq!(flag.off_variation, Some(2));
     }
 
-    /// TDS-1.3.11: VariationForAll configures flag for everyone
     #[test]
     fn variation_for_all_configures_for_everyone() {
         let flag = FlagBuilder::new("test-flag")
@@ -789,7 +689,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.3.12: VariationForAllIndex for non-boolean flags
     #[test]
     fn variation_for_all_index_configures_with_index() {
         let flag = FlagBuilder::new("test-flag")
@@ -810,7 +709,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.3.13: ValueForAll configures flag with single value
     #[test]
     fn value_for_all_sets_single_value() {
         let flag = FlagBuilder::new("test-flag")
@@ -829,7 +727,6 @@ mod tests {
         assert_eq!(flag.off_variation, Some(0));
     }
 
-    /// TDS-1.4.1: VariationForUser targets user contexts
     #[test]
     fn variation_for_user_targets_user_context() {
         let flag = FlagBuilder::new("test-flag")
@@ -844,7 +741,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.4.2: VariationForKey targets contexts of any kind
     #[test]
     fn variation_for_key_targets_any_context_kind() {
         let flag = FlagBuilder::new("test-flag")
@@ -862,7 +758,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(false)));
     }
 
-    /// TDS-1.4.3: VariationIndexForUser for user contexts
     #[test]
     fn variation_index_for_user_works_with_indices() {
         let flag = FlagBuilder::new("test-flag")
@@ -882,7 +777,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Str("blue".to_string())));
     }
 
-    /// TDS-1.4.4: VariationIndexForKey for any context kind
     #[test]
     fn variation_index_for_key_works_with_any_kind() {
         let flag = FlagBuilder::new("test-flag")
@@ -905,7 +799,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Number(1.0)));
     }
 
-    /// TDS-1.4.5: Individual context targeting takes precedence over rules
     #[test]
     fn context_targeting_takes_precedence_over_rules() {
         let flag = FlagBuilder::new("test-flag")
@@ -922,7 +815,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.4.6: Context key removed from other variation targets
     #[test]
     fn targeting_key_removes_from_other_variations() {
         let flag = FlagBuilder::new("test-flag")
@@ -948,7 +840,6 @@ mod tests {
         assert!(!true_targets.contains(&&"user-123".to_string()));
     }
 
-    /// TDS-1.4.7: ClearTargets removes all targets
     #[test]
     fn clear_targets_removes_all_targets() {
         let flag = FlagBuilder::new("test-flag")
@@ -960,7 +851,6 @@ mod tests {
         assert_eq!(flag.targets.len(), 0);
     }
 
-    /// TDS-1.5.1: IfMatch creates rule for user contexts
     #[test]
     fn if_match_creates_rule_for_user_contexts() {
         let flag = FlagBuilder::new("test-flag")
@@ -985,7 +875,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.5.2: IfMatchContext creates rule for any context kind
     #[test]
     fn if_match_context_creates_rule_for_any_kind() {
         let flag = FlagBuilder::new("test-flag")
@@ -1009,7 +898,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.5.3: IfNotMatch for negated matching
     #[test]
     fn if_not_match_creates_negated_rule() {
         let flag = FlagBuilder::new("test-flag")
@@ -1038,7 +926,6 @@ mod tests {
         assert_eq!(ca_result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.5.4: IfNotMatchContext for negated context matching
     #[test]
     fn if_not_match_context_creates_negated_rule_for_any_kind() {
         let flag = FlagBuilder::new("test-flag")
@@ -1065,7 +952,6 @@ mod tests {
         assert_eq!(basic_result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.5.5, TDS-1.5.6: AndMatch and AndMatchContext add clauses
     #[test]
     fn and_match_adds_multiple_clauses() {
         let flag = FlagBuilder::new("test-flag")
@@ -1097,7 +983,6 @@ mod tests {
         assert_eq!(partial_result.value, Some(&FlagValue::Bool(true))); // fallthrough
     }
 
-    /// TDS-1.5.7, TDS-1.5.8: AndNotMatch and AndNotMatchContext add negated clauses
     #[test]
     fn and_not_match_adds_negated_clauses() {
         let flag = FlagBuilder::new("test-flag")
@@ -1130,7 +1015,6 @@ mod tests {
         assert_eq!(ca_result.value, Some(&FlagValue::Bool(false))); // fallthrough
     }
 
-    /// TDS-1.5.9: ThenReturn completes rule for boolean flags
     #[test]
     fn then_return_completes_rule() {
         let flag = FlagBuilder::new("test-flag")
@@ -1145,7 +1029,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.5.10: ThenReturnIndex completes rule with index
     #[test]
     fn then_return_index_completes_rule_with_index() {
         let flag = FlagBuilder::new("test-flag")
@@ -1165,7 +1048,6 @@ mod tests {
         );
     }
 
-    /// TDS-1.5.11: Rules evaluated in order they were added
     #[test]
     fn rules_evaluated_in_order() {
         let flag = FlagBuilder::new("test-flag")
@@ -1184,7 +1066,6 @@ mod tests {
         assert_eq!(result.value, Some(&FlagValue::Bool(true)));
     }
 
-    /// TDS-1.5.12: Rules evaluated after targets and before fallthrough
     #[test]
     fn rules_evaluated_after_targets_before_fallthrough() {
         let flag = FlagBuilder::new("test-flag")
@@ -1223,7 +1104,6 @@ mod tests {
         assert_eq!(fallthrough_result.value, Some(&FlagValue::Bool(false)));
     }
 
-    /// TDS-1.5.13: ClearRules removes all rules
     #[test]
     fn clear_rules_removes_all_rules() {
         let flag = FlagBuilder::new("test-flag")
@@ -1237,7 +1117,6 @@ mod tests {
         assert_eq!(flag.rules.len(), 0);
     }
 
-    /// TDS-1.6.1: Only "in" operator supported
     #[test]
     fn only_in_operator_used_in_rules() {
         let flag = FlagBuilder::new("test-flag")
@@ -1269,21 +1148,18 @@ mod tests {
         assert_eq!(ca_result.value, Some(&FlagValue::Bool(true))); // fallthrough
     }
 
-    /// TDS-1.3.14: SamplingRatio sets event sampling ratio
     #[test]
     fn sampling_ratio_sets_ratio() {
         let flag = FlagBuilder::new("test-flag").sampling_ratio(10000).build();
         assert_eq!(flag.sampling_ratio, Some(10000));
     }
 
-    /// TDS-1.3.14: SamplingRatio defaults to None when not set
     #[test]
     fn sampling_ratio_defaults_to_none() {
         let flag = FlagBuilder::new("test-flag").build();
         assert_eq!(flag.sampling_ratio, None);
     }
 
-    /// TDS-1.3.15: ExcludeFromSummaries sets exclusion flag
     #[test]
     fn exclude_from_summaries_sets_exclusion() {
         let flag = FlagBuilder::new("test-flag")
@@ -1292,7 +1168,6 @@ mod tests {
         assert!(flag.exclude_from_summaries);
     }
 
-    /// TDS-1.3.15: ExcludeFromSummaries defaults to false
     #[test]
     fn exclude_from_summaries_defaults_to_false() {
         let flag = FlagBuilder::new("test-flag").build();
