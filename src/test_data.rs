@@ -26,8 +26,8 @@ struct FlagBuilderInner {
     key: String,
     on: bool,
     variations: Vec<FlagValue>,
-    fallthrough_variation: isize,
-    off_variation: isize,
+    fallthrough_variation: usize,
+    off_variation: usize,
     targets: Vec<Target>,
     rules: Vec<FlagRule>,
     sampling_ratio: Option<u32>,
@@ -106,7 +106,7 @@ impl FlagBuilder {
     /// Sets the fallthrough variation by index.
     ///
     /// The fallthrough variation is returned when targeting is on but no targets or rules match.
-    pub fn fallthrough_variation_index(self, index: isize) -> Self {
+    pub fn fallthrough_variation_index(self, index: usize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.fallthrough_variation = index;
         drop(inner);
@@ -124,7 +124,7 @@ impl FlagBuilder {
     /// Sets the off variation by index.
     ///
     /// The off variation is returned when targeting is disabled (on: false).
-    pub fn off_variation_index(self, index: isize) -> Self {
+    pub fn off_variation_index(self, index: usize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.off_variation = index;
         drop(inner);
@@ -153,7 +153,7 @@ impl FlagBuilder {
     /// - Enables targeting (on: true)
     /// - Removes all targets and rules
     /// - Sets the fallthrough variation to the specified index
-    pub fn variation_for_all_index(self, index: isize) -> Self {
+    pub fn variation_for_all_index(self, index: usize) -> Self {
         let mut inner = self.inner.lock().unwrap();
         inner.on = true;
         inner.targets.clear();
@@ -186,7 +186,7 @@ impl FlagBuilder {
     ///
     /// This is a convenience method for targeting contexts with kind: "user".
     pub fn variation_for_user(self, user_key: impl Into<String>, variation: bool) -> Self {
-        self.variation_index_for_key(Kind::user(), user_key.into(), if variation { 0 } else { 1 })
+        self.variation_index_for_key(Kind::user(), user_key, if variation { 0 } else { 1 })
     }
 
     /// Configures the flag to return a specific boolean value for a context of any kind.
@@ -196,13 +196,13 @@ impl FlagBuilder {
         key: impl Into<String>,
         variation: bool,
     ) -> Self {
-        self.variation_index_for_key(context_kind, key.into(), if variation { 0 } else { 1 })
+        self.variation_index_for_key(context_kind, key, if variation { 0 } else { 1 })
     }
 
     /// Configures the flag to return a specific variation index for a user context.
     ///
     /// This is a convenience method for targeting contexts with kind: "user".
-    pub fn variation_index_for_user(self, user_key: impl Into<String>, variation: isize) -> Self {
+    pub fn variation_index_for_user(self, user_key: impl Into<String>, variation: usize) -> Self {
         self.variation_index_for_key(Kind::user(), user_key.into(), variation)
     }
 
@@ -215,7 +215,7 @@ impl FlagBuilder {
         self,
         context_kind: Kind,
         key: impl Into<String>,
-        variation: isize,
+        variation: usize,
     ) -> Self {
         let key = key.into();
         let mut inner = self.inner.lock().unwrap();
@@ -231,7 +231,7 @@ impl FlagBuilder {
         let target = inner
             .targets
             .iter_mut()
-            .find(|t| t.variation == variation && t.context_kind == context_kind);
+            .find(|t| t.variation == variation as isize && t.context_kind == context_kind);
 
         if let Some(target) = target {
             if !target.values.contains(&key) {
@@ -241,7 +241,7 @@ impl FlagBuilder {
             inner.targets.push(Target {
                 context_kind,
                 values: vec![key],
-                variation,
+                variation: variation as isize,
             });
         }
 
@@ -513,7 +513,7 @@ impl RuleBuilder {
     /// Completes the rule configuration with a variation index.
     ///
     /// This method adds the completed rule to the flag and returns control to the flag builder.
-    pub fn then_return_index(self, variation: isize) -> FlagBuilder {
+    pub fn then_return_index(self, variation: usize) -> FlagBuilder {
         let rule_id = self.rule_id.unwrap_or_else(|| {
             format!(
                 "rule{}",
