@@ -4,10 +4,28 @@
 //! without needing to connect to LaunchDarkly services. These builders are intended for use in
 //! test scenarios and local development.
 
-use crate::{
-    contexts::context::Kind, flag::Target, flag_value::FlagValue, rule::Clause, rule::FlagRule,
-    AttributeValue, Flag,
-};
+use crate::{contexts::context::Kind, flag::Target, flag_value::FlagValue, AttributeValue, Flag};
+
+/// Intermediate representation of a clause, serialized to the flag model in `build()`.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClauseData {
+    context_kind: Kind,
+    attribute: String,
+    negate: bool,
+    op: &'static str,
+    values: Vec<AttributeValue>,
+}
+
+/// Intermediate representation of a rule, serialized to the flag model in `build()`.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RuleData {
+    id: String,
+    clauses: Vec<ClauseData>,
+    variation: usize,
+    track_events: bool,
+}
 
 /// Builder for constructing test flags with various configurations.
 ///
@@ -21,7 +39,7 @@ pub struct FlagBuilder {
     fallthrough_variation: usize,
     off_variation: usize,
     targets: Vec<Target>,
-    rules: Vec<FlagRule>,
+    rules: Vec<RuleData>,
     sampling_ratio: Option<u32>,
     exclude_from_summaries: bool,
 }
@@ -335,7 +353,7 @@ impl FlagBuilder {
 /// Rules are evaluated after individual context targets but before the fallthrough variation.
 pub struct RuleBuilder {
     flag_builder: FlagBuilder,
-    clauses: Vec<Clause>,
+    clauses: Vec<ClauseData>,
     rule_id: Option<String>,
 }
 
@@ -350,25 +368,37 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        let attribute_str = attribute.into();
-        let values_vec: Vec<AttributeValue> = values.into_iter().collect();
-
-        let clause_json = serde_json::json!({
-            "contextKind": context_kind,
-            "attribute": attribute_str,
-            "negate": negate,
-            "op": "in",
-            "values": values_vec,
-        });
-
-        let clause: Clause =
-            serde_json::from_value(clause_json).expect("Failed to create clause from valid JSON");
-
         Self {
             flag_builder,
-            clauses: vec![clause],
+            clauses: vec![ClauseData {
+                context_kind,
+                attribute: attribute.into(),
+                negate,
+                op: "in",
+                values: values.into_iter().collect(),
+            }],
             rule_id: None,
         }
+    }
+
+    fn add_clause<I>(
+        mut self,
+        context_kind: Kind,
+        attribute: impl Into<String>,
+        values: I,
+        negate: bool,
+    ) -> Self
+    where
+        I: IntoIterator<Item = AttributeValue>,
+    {
+        self.clauses.push(ClauseData {
+            context_kind,
+            attribute: attribute.into(),
+            negate,
+            op: "in",
+            values: values.into_iter().collect(),
+        });
+        self
     }
 
     /// Adds another clause to the current rule for user contexts.
@@ -378,14 +408,14 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        self.and_match_context(Kind::user(), attribute, values)
+        self.add_clause(Kind::user(), attribute, values, false)
     }
 
     /// Adds another clause to the current rule for a context of the specified kind.
     ///
     /// Multiple clauses in a rule have AND semantics - all must match for the rule to match.
     pub fn and_match_context<I>(
-        mut self,
+        self,
         context_kind: Kind,
         attribute: impl Into<String>,
         values: I,
@@ -393,22 +423,7 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        let attribute_str = attribute.into();
-        let values_vec: Vec<AttributeValue> = values.into_iter().collect();
-
-        let clause_json = serde_json::json!({
-            "contextKind": context_kind,
-            "attribute": attribute_str,
-            "negate": false,
-            "op": "in",
-            "values": values_vec,
-        });
-
-        let clause: Clause =
-            serde_json::from_value(clause_json).expect("Failed to create clause from valid JSON");
-
-        self.clauses.push(clause);
-        self
+        self.add_clause(context_kind, attribute, values, false)
     }
 
     /// Adds a negated clause to the current rule for user contexts.
@@ -418,14 +433,14 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        self.and_not_match_context(Kind::user(), attribute, values)
+        self.add_clause(Kind::user(), attribute, values, true)
     }
 
     /// Adds a negated clause to the current rule for a context of the specified kind.
     ///
     /// The clause must NOT match any of the values for the rule to match.
     pub fn and_not_match_context<I>(
-        mut self,
+        self,
         context_kind: Kind,
         attribute: impl Into<String>,
         values: I,
@@ -433,22 +448,7 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        let attribute_str = attribute.into();
-        let values_vec: Vec<AttributeValue> = values.into_iter().collect();
-
-        let clause_json = serde_json::json!({
-            "contextKind": context_kind,
-            "attribute": attribute_str,
-            "negate": true,
-            "op": "in",
-            "values": values_vec,
-        });
-
-        let clause: Clause =
-            serde_json::from_value(clause_json).expect("Failed to create clause from valid JSON");
-
-        self.clauses.push(clause);
-        self
+        self.add_clause(context_kind, attribute, values, true)
     }
 
     /// Sets a custom rule ID for this rule.
@@ -475,18 +475,13 @@ impl RuleBuilder {
             .rule_id
             .unwrap_or_else(|| format!("rule{}", self.flag_builder.rules.len()));
 
-        let rule_json = serde_json::json!({
-            "id": rule_id,
-            "clauses": self.clauses,
-            "variation": variation,
-            "trackEvents": false,
-        });
-
-        let rule: FlagRule =
-            serde_json::from_value(rule_json).expect("Failed to create rule from valid JSON");
-
         let mut flag_builder = self.flag_builder;
-        flag_builder.rules.push(rule);
+        flag_builder.rules.push(RuleData {
+            id: rule_id,
+            clauses: self.clauses,
+            variation,
+            track_events: false,
+        });
         flag_builder
     }
 }
