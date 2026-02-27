@@ -851,6 +851,7 @@ mod tests {
     #[test]
     fn if_not_match_creates_negated_rule() {
         let flag = FlagBuilder::new("test-flag")
+            .fallthrough_variation(false)
             .if_not_match("country", vec![AttributeValue::String("us".to_string())])
             .then_return(true)
             .build();
@@ -859,15 +860,15 @@ mod tests {
             flag: Some(flag.clone()),
         };
 
-        // Should not match US
+        // US context should NOT match negated rule, gets fallthrough (false)
         let us_context = ContextBuilder::new("user-123")
             .set_value("country", AttributeValue::String("us".to_string()))
             .build()
             .unwrap();
         let us_result = evaluate(&store, &flag, &us_context, None);
-        assert_eq!(us_result.value, Some(&FlagValue::Bool(true))); // fallthrough
+        assert_eq!(us_result.value, Some(&FlagValue::Bool(false)));
 
-        // Should match CA
+        // CA context should match negated rule, gets rule value (true)
         let ca_context = ContextBuilder::new("user-456")
             .set_value("country", AttributeValue::String("ca".to_string()))
             .build()
@@ -905,6 +906,7 @@ mod tests {
     #[test]
     fn and_match_adds_multiple_clauses() {
         let flag = FlagBuilder::new("test-flag")
+            .fallthrough_variation(false)
             .if_match("country", vec![AttributeValue::String("us".to_string())])
             .and_match("state", vec![AttributeValue::String("ca".to_string())])
             .then_return(true)
@@ -914,7 +916,7 @@ mod tests {
             flag: Some(flag.clone()),
         };
 
-        // Both conditions match
+        // Both conditions match - gets rule value (true)
         let matching_context = ContextBuilder::new("user-123")
             .set_value("country", AttributeValue::String("us".to_string()))
             .set_value("state", AttributeValue::String("ca".to_string()))
@@ -923,14 +925,14 @@ mod tests {
         let matching_result = evaluate(&store, &flag, &matching_context, None);
         assert_eq!(matching_result.value, Some(&FlagValue::Bool(true)));
 
-        // Only one condition matches
+        // Only one condition matches - gets fallthrough (false)
         let partial_context = ContextBuilder::new("user-456")
             .set_value("country", AttributeValue::String("us".to_string()))
             .set_value("state", AttributeValue::String("ny".to_string()))
             .build()
             .unwrap();
         let partial_result = evaluate(&store, &flag, &partial_context, None);
-        assert_eq!(partial_result.value, Some(&FlagValue::Bool(true))); // fallthrough
+        assert_eq!(partial_result.value, Some(&FlagValue::Bool(false)));
     }
 
     #[test]
@@ -1070,6 +1072,7 @@ mod tests {
     #[test]
     fn only_in_operator_used_in_rules() {
         let flag = FlagBuilder::new("test-flag")
+            .fallthrough_variation(false)
             .if_match("country", vec![AttributeValue::String("us".to_string())])
             .then_return(true)
             .build();
@@ -1080,22 +1083,22 @@ mod tests {
         let store = TestStore {
             flag: Some(flag.clone()),
         };
+
+        // US matches rule - gets rule value (true)
         let us_context = ContextBuilder::new("user-123")
             .set_value("country", AttributeValue::String("us".to_string()))
             .build()
             .unwrap();
+        let us_result = evaluate(&store, &flag, &us_context, None);
+        assert_eq!(us_result.value, Some(&FlagValue::Bool(true)));
+
+        // CA does not match rule - gets fallthrough (false)
         let ca_context = ContextBuilder::new("user-456")
             .set_value("country", AttributeValue::String("ca".to_string()))
             .build()
             .unwrap();
-
-        let us_flag = store.flag("test-flag").unwrap();
-        let us_result = evaluate(&store, &us_flag, &us_context, None);
-        assert_eq!(us_result.value, Some(&FlagValue::Bool(true)));
-
-        let ca_flag = store.flag("test-flag").unwrap();
-        let ca_result = evaluate(&store, &ca_flag, &ca_context, None);
-        assert_eq!(ca_result.value, Some(&FlagValue::Bool(true))); // fallthrough
+        let ca_result = evaluate(&store, &flag, &ca_context, None);
+        assert_eq!(ca_result.value, Some(&FlagValue::Bool(false)));
     }
 
     #[test]
