@@ -142,12 +142,10 @@ impl MigrationFlagParameters {
     }
 }
 
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct ClientVisibility {
     pub(crate) client_side_availability: ClientSideAvailability,
 }
-
 
 impl<'de> Deserialize<'de> for ClientVisibility {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -271,7 +269,6 @@ pub struct ClientSideAvailability {
     #[serde(skip)]
     explicit: bool,
 }
-
 
 impl Flag {
     /// Generate a [crate::Detail] response with the given variation and reason.
