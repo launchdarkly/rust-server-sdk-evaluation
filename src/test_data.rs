@@ -218,12 +218,14 @@ impl FlagBuilder {
     ) -> Self {
         let key = key.into();
 
-        // Remove the key from all existing targets for this context kind
+        // Remove the key from all existing targets for this context kind,
+        // then prune any targets left with empty values lists.
         for target in &mut self.targets {
             if target.context_kind == context_kind {
                 target.values.retain(|k| k != &key);
             }
         }
+        self.targets.retain(|t| !t.values.is_empty());
 
         // Find or create target for this variation and context kind
         let target = self
