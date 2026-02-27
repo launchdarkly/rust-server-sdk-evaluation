@@ -4,7 +4,14 @@
 //! without needing to connect to LaunchDarkly services. These builders are intended for use in
 //! test scenarios and local development.
 
-use crate::{contexts::context::Kind, flag::Target, flag_value::FlagValue, AttributeValue, Flag};
+use crate::{
+    contexts::context::Kind,
+    flag::{ClientVisibility, Target},
+    flag_value::FlagValue,
+    rule::FlagRule,
+    variation::VariationOrRollout,
+    AttributeValue, Flag,
+};
 
 /// Intermediate representation of a clause, serialized to the flag model in `build()`.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -318,32 +325,36 @@ impl FlagBuilder {
     ///
     /// This method creates a complete Flag with all configured settings.
     pub fn build(self) -> Flag {
-        // Construct JSON and deserialize to avoid dealing with private fields
-        let mut json = serde_json::json!({
-            "key": self.key,
-            "version": 1,
-            "on": self.on,
-            "targets": self.targets,
-            "contextTargets": [],
-            "rules": self.rules,
-            "prerequisites": [],
-            "fallthrough": { "variation": self.fallthrough_variation },
-            "offVariation": self.off_variation,
-            "variations": self.variations,
-            "clientSide": false,
-            "salt": "",
-            "trackEvents": false,
-            "trackEventsFallthrough": false,
-        });
+        // Rules still use JSON serialization because Clause/FlagRule have
+        // private nested types (Op, Reference) that can't be constructed directly.
+        let rules: Vec<FlagRule> = self
+            .rules
+            .into_iter()
+            .map(|r| serde_json::from_value(serde_json::to_value(&r).unwrap()).unwrap())
+            .collect();
 
-        if let Some(ratio) = self.sampling_ratio {
-            json["samplingRatio"] = serde_json::json!(ratio);
+        Flag {
+            key: self.key,
+            version: 1,
+            on: self.on,
+            targets: self.targets,
+            context_targets: vec![],
+            rules,
+            prerequisites: vec![],
+            fallthrough: VariationOrRollout::Variation {
+                variation: self.fallthrough_variation as isize,
+            },
+            off_variation: Some(self.off_variation as isize),
+            variations: self.variations,
+            client_visibility: ClientVisibility::default(),
+            salt: String::new(),
+            track_events: false,
+            track_events_fallthrough: false,
+            debug_events_until_date: None,
+            migration_settings: None,
+            sampling_ratio: self.sampling_ratio,
+            exclude_from_summaries: self.exclude_from_summaries,
         }
-        if self.exclude_from_summaries {
-            json["excludeFromSummaries"] = serde_json::json!(true);
-        }
-
-        serde_json::from_value(json).expect("Failed to build flag from valid JSON")
     }
 }
 

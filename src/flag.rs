@@ -38,13 +38,13 @@ pub struct Flag {
 
     pub(crate) fallthrough: VariationOrRollout,
     pub(crate) off_variation: Option<VariationIndex>,
-    variations: Vec<FlagValue>,
+    pub(crate) variations: Vec<FlagValue>,
 
     /// Indicates whether a flag is available using each of the client-side authentication methods.
     #[serde(flatten)]
-    client_visibility: ClientVisibility,
+    pub(crate) client_visibility: ClientVisibility,
 
-    salt: String,
+    pub(crate) salt: String,
 
     /// Used internally by the SDK analytics event system.
     ///
@@ -143,8 +143,16 @@ impl MigrationFlagParameters {
 }
 
 #[derive(Clone, Debug)]
-struct ClientVisibility {
-    client_side_availability: ClientSideAvailability,
+pub(crate) struct ClientVisibility {
+    pub(crate) client_side_availability: ClientSideAvailability,
+}
+
+impl Default for ClientVisibility {
+    fn default() -> Self {
+        Self {
+            client_side_availability: ClientSideAvailability::default(),
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for ClientVisibility {
@@ -267,6 +275,16 @@ pub struct ClientSideAvailability {
     // [ClientVisibility::client_side] field.
     #[serde(skip)]
     explicit: bool,
+}
+
+impl Default for ClientSideAvailability {
+    fn default() -> Self {
+        Self {
+            using_mobile_key: false,
+            using_environment_id: false,
+            explicit: false,
+        }
+    }
 }
 
 impl Flag {
