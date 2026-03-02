@@ -18,6 +18,7 @@ use crate::{
 /// The flag builder provides a fluent API for creating flags with targeting rules,
 /// variations, and other configuration options. This is the primary way to create
 /// test flags for use in testing and development scenarios.
+#[derive(Clone)]
 pub struct FlagBuilder {
     key: String,
     on: bool,
@@ -31,6 +32,11 @@ pub struct FlagBuilder {
 }
 
 impl FlagBuilder {
+    /// Returns the flag key for this builder.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
     /// Creates a new flag builder for the given flag key.
     ///
     /// If creating a new flag, it will be initialized as a boolean flag with:
