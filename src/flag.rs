@@ -38,13 +38,13 @@ pub struct Flag {
 
     pub(crate) fallthrough: VariationOrRollout,
     pub(crate) off_variation: Option<VariationIndex>,
-    variations: Vec<FlagValue>,
+    pub(crate) variations: Vec<FlagValue>,
 
     /// Indicates whether a flag is available using each of the client-side authentication methods.
     #[serde(flatten)]
-    client_visibility: ClientVisibility,
+    pub(crate) client_visibility: ClientVisibility,
 
-    salt: String,
+    pub(crate) salt: String,
 
     /// Used internally by the SDK analytics event system.
     ///
@@ -142,9 +142,9 @@ impl MigrationFlagParameters {
     }
 }
 
-#[derive(Clone, Debug)]
-struct ClientVisibility {
-    client_side_availability: ClientSideAvailability,
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ClientVisibility {
+    pub(crate) client_side_availability: ClientSideAvailability,
 }
 
 impl<'de> Deserialize<'de> for ClientVisibility {
@@ -253,6 +253,7 @@ pub(crate) struct Target {
 /// bootstrapped set of flag data (see [Bootstrapping the Javascript SDK](https://docs.launchdarkly.com/sdk/client-side/javascript#bootstrapping)).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct ClientSideAvailability {
     /// Indicates that this flag is available to clients using the mobile key for
     /// authorization (includes most desktop and mobile clients).
