@@ -22,19 +22,19 @@ use util::is_false;
 #[serde(rename_all = "camelCase", from = "IntermediateClause")]
 pub struct Clause {
     // Kind associated with this clause.
-    context_kind: Kind,
+    pub(crate) context_kind: Kind,
     // Which context attribute to test. If op does not require an attribute,
     // then the input may be an empty string, which will construct an invalid
     // reference.
-    attribute: Reference,
+    pub(crate) attribute: Reference,
     // True if the result of the test should be negated.
     // Skip serializing if false because it is optional in the JSON model.
     #[serde(skip_serializing_if = "is_false")]
-    negate: bool,
+    pub(crate) negate: bool,
     // The test operation.
-    op: Op,
+    pub(crate) op: Op,
     // The values to test against.
-    values: Vec<AttributeValue>,
+    pub(crate) values: Vec<AttributeValue>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -132,7 +132,7 @@ pub struct FlagRule {
     /// This is used to populate the id property of [crate::Reason]
     #[serde(default)]
     pub id: String,
-    clauses: Vec<Clause>,
+    pub(crate) clauses: Vec<Clause>,
 
     /// Defines what variation to return if the context matches this rule.
     #[serde(flatten)]
@@ -152,7 +152,7 @@ pub struct FlagRule {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[serde(rename_all = "camelCase")]
-enum Op {
+pub(crate) enum Op {
     In,
     StartsWith,
     EndsWith,

@@ -8,31 +8,10 @@ use crate::{
     contexts::context::Kind,
     flag::{ClientVisibility, Target},
     flag_value::FlagValue,
-    rule::FlagRule,
+    rule::{Clause, FlagRule, Op},
     variation::VariationOrRollout,
-    AttributeValue, Flag,
+    AttributeValue, Flag, Reference,
 };
-
-/// Intermediate representation of a clause, serialized to the flag model in `build()`.
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ClauseData {
-    context_kind: Kind,
-    attribute: String,
-    negate: bool,
-    op: &'static str,
-    values: Vec<AttributeValue>,
-}
-
-/// Intermediate representation of a rule, serialized to the flag model in `build()`.
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct RuleData {
-    id: String,
-    clauses: Vec<ClauseData>,
-    variation: usize,
-    track_events: bool,
-}
 
 /// Builder for constructing test flags with various configurations.
 ///
@@ -46,7 +25,7 @@ pub struct FlagBuilder {
     fallthrough_variation: usize,
     off_variation: usize,
     targets: Vec<Target>,
-    rules: Vec<RuleData>,
+    rules: Vec<FlagRule>,
     sampling_ratio: Option<u32>,
     exclude_from_summaries: bool,
 }
@@ -327,21 +306,13 @@ impl FlagBuilder {
     ///
     /// This method creates a complete Flag with all configured settings.
     pub fn build(self) -> Flag {
-        // Rules still use JSON serialization because Clause/FlagRule have
-        // private nested types (Op, Reference) that can't be constructed directly.
-        let rules: Vec<FlagRule> = self
-            .rules
-            .into_iter()
-            .map(|r| serde_json::from_value(serde_json::to_value(&r).unwrap()).unwrap())
-            .collect();
-
         Flag {
             key: self.key,
             version: 1,
             on: self.on,
             targets: self.targets,
             context_targets: vec![],
-            rules,
+            rules: self.rules,
             prerequisites: vec![],
             fallthrough: VariationOrRollout::Variation {
                 variation: self.fallthrough_variation as isize,
@@ -366,7 +337,7 @@ impl FlagBuilder {
 /// Rules are evaluated after individual context targets but before the fallthrough variation.
 pub struct RuleBuilder {
     flag_builder: FlagBuilder,
-    clauses: Vec<ClauseData>,
+    clauses: Vec<Clause>,
     rule_id: Option<String>,
 }
 
@@ -383,14 +354,26 @@ impl RuleBuilder {
     {
         Self {
             flag_builder,
-            clauses: vec![ClauseData {
-                context_kind,
-                attribute: attribute.into(),
-                negate,
-                op: "in",
-                values: values.into_iter().collect(),
-            }],
+            clauses: vec![Self::make_clause(context_kind, attribute, values, negate)],
             rule_id: None,
+        }
+    }
+
+    fn make_clause<I>(
+        context_kind: Kind,
+        attribute: impl Into<String>,
+        values: I,
+        negate: bool,
+    ) -> Clause
+    where
+        I: IntoIterator<Item = AttributeValue>,
+    {
+        Clause {
+            context_kind,
+            attribute: Reference::from(attribute.into()),
+            negate,
+            op: Op::In,
+            values: values.into_iter().collect(),
         }
     }
 
@@ -404,13 +387,8 @@ impl RuleBuilder {
     where
         I: IntoIterator<Item = AttributeValue>,
     {
-        self.clauses.push(ClauseData {
-            context_kind,
-            attribute: attribute.into(),
-            negate,
-            op: "in",
-            values: values.into_iter().collect(),
-        });
+        self.clauses
+            .push(Self::make_clause(context_kind, attribute, values, negate));
         self
     }
 
@@ -489,10 +467,12 @@ impl RuleBuilder {
             .unwrap_or_else(|| format!("rule{}", self.flag_builder.rules.len()));
 
         let mut flag_builder = self.flag_builder;
-        flag_builder.rules.push(RuleData {
+        flag_builder.rules.push(FlagRule {
             id: rule_id,
             clauses: self.clauses,
-            variation,
+            variation_or_rollout: VariationOrRollout::Variation {
+                variation: variation as isize,
+            },
             track_events: false,
         });
         flag_builder
