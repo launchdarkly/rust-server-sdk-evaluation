@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.1.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.0.2...2.1.0) (2026-03-02)
+
+
+### Features
+
+* Add support for flag / segment builders ([#33](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/33)) ([fd63046](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/fd63046be84cd0e4a82eab5c035b95d0bc595a5c))
+
 ## [2.0.2](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.0.1...2.0.2) (2026-01-26)
 
 
