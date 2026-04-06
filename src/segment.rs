@@ -196,6 +196,15 @@ impl Segment {
         false
     }
 
+    /// Returns the context kind for this unbounded (big) segment, or None if not set.
+    ///
+    /// When evaluating big segment membership, callers should default to [`Kind::user`] if this
+    /// returns None, and then use [`Context::as_kind`] to find the matching single-kind context
+    /// whose key should be used for the membership lookup.
+    pub fn unbounded_context_kind(&self) -> Option<&Kind> {
+        self.unbounded_context_kind.as_ref()
+    }
+
     /// Retrieve the id representing this big segment.
     ///
     /// This id will either be the segment key if the segment isn't a big segment, or it will be a
@@ -765,5 +774,27 @@ mod tests {
             assert_segment_match(&segment, context_a, true);
             assert_segment_match(&segment, context_z, false);
         }
+    }
+
+    #[test]
+    fn unbounded_context_kind_accessor_returns_none_when_unset() {
+        let segment = new_segment();
+        assert_eq!(segment.unbounded_context_kind(), None);
+    }
+
+    #[test]
+    fn unbounded_context_kind_accessor_returns_kind_when_set() {
+        let mut segment = new_segment();
+        segment.unbounded = true;
+        segment.unbounded_context_kind = Some(Kind::from("org"));
+        assert_eq!(segment.unbounded_context_kind(), Some(&Kind::from("org")));
+    }
+
+    #[test]
+    fn unbounded_context_kind_accessor_returns_user_kind() {
+        let mut segment = new_segment();
+        segment.unbounded = true;
+        segment.unbounded_context_kind = Some(Kind::user());
+        assert_eq!(segment.unbounded_context_kind(), Some(&Kind::user()));
     }
 }
