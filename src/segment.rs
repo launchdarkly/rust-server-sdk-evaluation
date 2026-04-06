@@ -36,6 +36,8 @@ pub struct Segment {
     #[serde(default)]
     pub unbounded: bool,
     #[serde(default)]
+    unbounded_context_kind: Option<Kind>,
+    #[serde(default)]
     generation: Option<i64>,
 
     /// An integer that is incremented by LaunchDarkly every time the configuration of the segment
@@ -303,6 +305,61 @@ mod tests {
     }
 
     #[test]
+    fn handles_unbounded_context_kind() {
+        let json = r#"{
+                "key": "segment",
+                "included": [],
+                "excluded": [],
+                "rules": [],
+                "salt": "salty",
+                "unbounded": true,
+                "unboundedContextKind": "org",
+                "generation": 2,
+                "version": 1
+            }"#;
+
+        let segment: Segment = serde_json::from_str(json).expect("Failed to parse segment");
+        assert!(segment.unbounded);
+        assert_eq!(segment.unbounded_context_kind, Some(Kind::from("org")));
+        assert_eq!(segment.generation, Some(2));
+    }
+
+    #[test]
+    fn unbounded_context_kind_defaults_to_none() {
+        let json = r#"{
+                "key": "segment",
+                "included": [],
+                "excluded": [],
+                "rules": [],
+                "salt": "salty",
+                "unbounded": true,
+                "version": 1
+            }"#;
+
+        let segment: Segment = serde_json::from_str(json).expect("Failed to parse segment");
+        assert!(segment.unbounded);
+        assert_eq!(segment.unbounded_context_kind, None);
+    }
+
+    #[test]
+    fn unbounded_context_kind_user() {
+        let json = r#"{
+                "key": "segment",
+                "included": [],
+                "excluded": [],
+                "rules": [],
+                "salt": "salty",
+                "unbounded": true,
+                "unboundedContextKind": "user",
+                "generation": 1,
+                "version": 1
+            }"#;
+
+        let segment: Segment = serde_json::from_str(json).expect("Failed to parse segment");
+        assert_eq!(segment.unbounded_context_kind, Some(Kind::user()));
+    }
+
+    #[test]
     fn handles_context_schema() {
         let json = &r#"{
                 "key": "segment",
@@ -362,6 +419,7 @@ mod tests {
             rules: vec![],
             salt: "salty".to_string(),
             unbounded: false,
+            unbounded_context_kind: None,
             generation: Some(1),
             version: 1,
         }
