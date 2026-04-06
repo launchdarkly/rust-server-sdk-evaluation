@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.1.2](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.1...2.1.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* Add unbounded context kind to segment type ([#39](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/39)) ([aa2504f](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/aa2504f91e4678377804e891cfa9da62bce69905))
+
 ## [2.1.1](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.0...2.1.1) (2026-03-06)
 
 
