@@ -317,6 +317,21 @@ impl Flag {
             .using_mobile_key
     }
 
+    /// Returns an iterator over the keys of flags this flag lists as
+    /// prerequisites.
+    pub fn prerequisite_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.prerequisites.iter().map(|p| p.key.as_str())
+    }
+
+    /// Returns an iterator over every segment key directly referenced by any
+    /// `segmentMatch` clause in this flag's rules.
+    ///
+    /// This does not resolve transitively through other flags (prerequisites)
+    /// or through segments that themselves reference segments.
+    pub fn segment_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.rules.iter().flat_map(FlagRule::segment_keys)
+    }
+
     pub(crate) fn resolve_variation_or_rollout(
         &self,
         vr: &VariationOrRollout,
@@ -692,5 +707,138 @@ mod tests {
         let with_specific_ratio = serde_json::to_string_pretty(&flag).unwrap();
         assert!(with_specific_ratio.contains("\"migration\": {"));
         assert!(with_specific_ratio.contains("\"checkRatio\": 42"));
+    }
+
+    #[test]
+    fn prerequisite_keys_returns_all_listed_prerequisites() {
+        let json = r#"{
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "targets": [],
+            "rules": [],
+            "prerequisites": [
+                {"key": "prereq-a", "variation": 0},
+                {"key": "prereq-b", "variation": 1}
+            ],
+            "fallthrough": {"variation": 0},
+            "offVariation": null,
+            "variations": [false, true],
+            "clientSide": false,
+            "salt": "salty"
+        }"#;
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let keys: Vec<&str> = flag.prerequisite_keys().collect();
+        assert_eq!(keys, vec!["prereq-a", "prereq-b"]);
+    }
+
+    #[test]
+    fn prerequisite_keys_is_empty_when_flag_has_no_prerequisites() {
+        let json = r#"{
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "targets": [],
+            "rules": [],
+            "prerequisites": [],
+            "fallthrough": {"variation": 0},
+            "offVariation": null,
+            "variations": [false, true],
+            "clientSide": false,
+            "salt": "salty"
+        }"#;
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        assert_eq!(flag.prerequisite_keys().count(), 0);
+    }
+
+    #[test]
+    fn segment_keys_collects_from_segment_match_clauses() {
+        let json = r#"{
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "targets": [],
+            "rules": [
+                {
+                    "id": "r1",
+                    "clauses": [
+                        {
+                            "attribute": "",
+                            "op": "segmentMatch",
+                            "values": ["seg-a", "seg-b"],
+                            "negate": false
+                        }
+                    ],
+                    "variation": 1,
+                    "trackEvents": false
+                },
+                {
+                    "id": "r2",
+                    "clauses": [
+                        {
+                            "attribute": "email",
+                            "op": "in",
+                            "values": ["foo@example.com"],
+                            "negate": false
+                        },
+                        {
+                            "attribute": "",
+                            "op": "segmentMatch",
+                            "values": ["seg-c"],
+                            "negate": false
+                        }
+                    ],
+                    "variation": 1,
+                    "trackEvents": false
+                }
+            ],
+            "prerequisites": [],
+            "fallthrough": {"variation": 0},
+            "offVariation": null,
+            "variations": [false, true],
+            "clientSide": false,
+            "salt": "salty"
+        }"#;
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        let mut refs: Vec<&str> = flag.segment_keys().collect();
+        refs.sort();
+        assert_eq!(refs, vec!["seg-a", "seg-b", "seg-c"]);
+    }
+
+    #[test]
+    fn segment_keys_ignores_non_segment_match_clauses() {
+        let json = r#"{
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "targets": [],
+            "rules": [
+                {
+                    "id": "r1",
+                    "clauses": [
+                        {
+                            "attribute": "email",
+                            "op": "in",
+                            "values": ["seg-a"],
+                            "negate": false
+                        }
+                    ],
+                    "variation": 1,
+                    "trackEvents": false
+                }
+            ],
+            "prerequisites": [],
+            "fallthrough": {"variation": 0},
+            "offVariation": null,
+            "variations": [false, true],
+            "clientSide": false,
+            "salt": "salty"
+        }"#;
+
+        let flag: Flag = serde_json::from_str(json).unwrap();
+        assert_eq!(flag.segment_keys().count(), 0);
     }
 }
