@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.1.4](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.3...2.1.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* Bump MSRV from 1.93 to 1.94 ([#50](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/50)) ([80a97ad](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/80a97adbd555a8186a8941561018707fa5304ded))
+
 ## [2.1.3](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.2...2.1.3) (2026-04-20)
 
 
