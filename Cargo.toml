@@ -39,8 +39,21 @@ proptest = "1.0.0"
 proptest-derive = "0.5.1"
 
 [features]
+default = ["float-roundtrip"]
+
 # If a secondary key is present in Context data, use it when computing
 # the Context's bucket. This may be enabled for backwards-compatibility purposes,
 # e.g. for usage in a non-SDK application, but it is otherwise unnecessary as
 # secondary keys cannot be set using Context builders.
 secondary_key_bucketing = []
+
+# Parse fractional JSON numbers with serde_json's correctly-rounded float parser, so that
+# numeric flag values and numeric context attributes deserialize to the same f64 that Go's
+# encoding/json produces. This keeps evaluation consistent with the other LaunchDarkly SDKs
+# and is why the feature is enabled by default.
+#
+# Disabling it makes serde_json use its faster best-effort parser, which can land one unit in
+# the last place away from the correctly-rounded value. Note that Cargo feature unification is
+# additive and global, so this feature is still on if any other crate in the dependency graph
+# asks for serde_json/float_roundtrip.
+float-roundtrip = ["serde_json/float_roundtrip"]
