@@ -2,6 +2,18 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.2.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.4...2.2.0) (2026-08-06)
+
+
+### Features
+
+* Add optional float-roundtrip feature ([#55](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/55)) ([d584fc2](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/d584fc279f0b2e833d88dbc38f8181452d50a516))
+
+
+### Bug Fixes
+
+* Bump MSRV from 1.94 to 1.95 ([#53](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/53)) ([34b3b12](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/34b3b122cfbae2e9bdbf58015847eccf1d35a9d1))
+
 ## [2.1.4](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.3...2.1.4) (2026-06-08)
 
 
