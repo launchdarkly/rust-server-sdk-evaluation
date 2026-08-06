@@ -12,6 +12,25 @@
 
 This repository contains the internal feature flag evaluation logic and data model used by the [LaunchDarkly Rust SDK](https://github.com/launchdarkly/rust-server-sdk). It is packaged separately because it is also used by internal LaunchDarkly components. Applications using the LaunchDarkly Rust SDK should not need to reference this package directly.
 
+## Cargo features
+
+| Feature | Default | Description |
+| --- | --- | --- |
+| `float-roundtrip` | yes | Enables `serde_json`'s `float_roundtrip` feature so that fractional JSON numbers deserialize to the same `f64` that Go's `encoding/json` produces. |
+| `secondary_key_bucketing` | no | Uses a secondary key present in context data when computing the context's bucket. Intended for backwards compatibility in non-SDK applications; secondary keys cannot be set using the context builders. |
+
+### Disabling `float-roundtrip`
+
+`float-roundtrip` is enabled by default because it is what keeps numeric flag values and numeric context attributes consistent with the other LaunchDarkly SDKs. Without it, `serde_json` uses a faster best-effort float parser that can land one unit in the last place away from the correctly-rounded value, so a numeric evaluation could in principle differ from what another SDK computes for the same flag.
+
+Disable it if you would rather have the faster parser and do not depend on that cross-SDK consistency:
+
+```toml
+launchdarkly-server-sdk-evaluation = { version = "2", default-features = false }
+```
+
+Note that Cargo feature unification is additive and applies to the whole build, so `float_roundtrip` remains enabled if any other crate in your dependency graph asks for it.
+
 ## Learn more
 
 Read our [documentation](http://docs.launchdarkly.com) for in-depth instructions on configuring and using LaunchDarkly. You can also head straight to the [complete reference guide for the Rust SDK](https://docs.launchdarkly.com/sdk/server-side/rust), or the [generated API documentation](https://docs.rs/launchdarkly-server-sdk-evaluation) for this project.

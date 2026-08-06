@@ -292,4 +292,23 @@ mod tests {
             AttributeValue::Object(hashmap!["foo".to_string() => AttributeValue::Number(123.0)]),
         );
     }
+
+    // Fractional numbers must deserialize to the same f64 that Go's encoding/json produces, so
+    // that numeric attribute comparisons and bucketing behave identically across LaunchDarkly
+    // SDKs. This requires serde_json's correctly-rounded parser, which the float-roundtrip
+    // feature selects.
+    #[cfg(feature = "float-roundtrip")]
+    #[test]
+    fn fractional_deserialization_matches_go() {
+        fn test_case(json: &str, expected: f64) {
+            assert_eq!(
+                serde_json::from_str::<AttributeValue>(json).unwrap(),
+                AttributeValue::Number(expected)
+            );
+        }
+
+        test_case("130.65331632653061", 130.65331632653061);
+        test_case("130.65331632653062", 130.65331632653061);
+        test_case("130.65331632653063", 130.65331632653064);
+    }
 }

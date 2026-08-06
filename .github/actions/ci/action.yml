@@ -16,6 +16,10 @@ runs:
       shell: bash
       run: cargo test --features secondary_key_bucketing
 
+    - name: Run tests with no default features
+      shell: bash
+      run: cargo test --no-default-features
+
     - name: Run clippy checks
       shell: bash
       run: cargo clippy --all-features -- -D warnings
