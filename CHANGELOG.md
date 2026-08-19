@@ -2,6 +2,13 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.2.1](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.2.0...2.2.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* Report slash- and tilde-prefixed redacted attributes as escaped references ([#56](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/56)) ([70f4aaa](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/70f4aaa4124da2c71bc47bb650814e07d8511579))
+
 ## [2.2.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.1.4...2.2.0) (2026-08-06)
 
 
