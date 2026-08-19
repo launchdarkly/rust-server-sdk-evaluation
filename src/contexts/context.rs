@@ -603,7 +603,7 @@ impl ContextAttributes {
             self.all_attributes_private || (self.redact_anonymous && context.anonymous);
 
         for key in optional_attribute_names.iter() {
-            let reference = Reference::new(key);
+            let reference = Reference::from_literal_name(key);
             if let Some(value) = context.get_value(&reference) {
                 // If redact_all is true, then there's no complex filtering or
                 // recursing to be done: all of these values are by definition private, so just add
@@ -867,9 +867,10 @@ mod tests {
     use crate::{AttributeValue, ContextBuilder, MultiContextBuilder, Reference};
     use maplit::hashmap;
     use proptest::proptest;
+    use std::collections::HashSet;
     use test_case::test_case;
 
-    use super::Kind;
+    use super::{ContextAttributes, Kind};
 
     proptest! {
         #[test]
@@ -1143,5 +1144,71 @@ mod tests {
         let context = multi_context.without_anonymous_contexts();
 
         assert!(context.is_err());
+    }
+
+    // Collects the strings in an event context's redactedAttributes as a set, since their order is
+    // not significant.
+    fn redacted_attributes(json: &serde_json::Value) -> HashSet<String> {
+        json["_meta"]["redactedAttributes"]
+            .as_array()
+            .expect("redactedAttributes should be an array")
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect()
+    }
+
+    #[test_case("/ssn", "/~1ssn"; "slash prefix is escaped")]
+    #[test_case("/a~b", "/~1a~0b"; "slash prefix with tilde escapes both")]
+    fn all_attributes_private_reports_escaped_references(name: &str, expected_ref: &str) {
+        let context = ContextBuilder::new("my-key")
+            .set_string(name, "secret")
+            .build()
+            .expect("Failed to build context");
+
+        let attributes = ContextAttributes::from_context(context, true, HashSet::new());
+        let json = serde_json::to_value(&attributes).expect("Failed to serialize");
+
+        assert_eq!(
+            redacted_attributes(&json),
+            HashSet::from([expected_ref.to_string()])
+        );
+        // The attribute value must not be leaked into the serialized output.
+        assert!(json.get(name).is_none());
+    }
+
+    #[test]
+    fn anonymous_redaction_reports_slash_prefixed_names_as_escaped_references() {
+        let context = ContextBuilder::new("my-key")
+            .anonymous(true)
+            .set_string("/ssn", "123-45-6789")
+            .build()
+            .expect("Failed to build context");
+
+        let attributes = ContextAttributes::from_context_with_anonymous_redaction(
+            context,
+            false,
+            HashSet::new(),
+        );
+        let json = serde_json::to_value(&attributes).expect("Failed to serialize");
+
+        assert_eq!(
+            redacted_attributes(&json),
+            HashSet::from(["/~1ssn".to_string()])
+        );
+        assert!(json.get("/ssn").is_none());
+    }
+
+    #[test]
+    fn slash_prefixed_attribute_is_serialized_under_its_literal_name_when_not_private() {
+        let context = ContextBuilder::new("my-key")
+            .set_string("/ssn", "123-45-6789")
+            .build()
+            .expect("Failed to build context");
+
+        let attributes = ContextAttributes::from_context(context, false, HashSet::new());
+        let json = serde_json::to_value(&attributes).expect("Failed to serialize");
+
+        assert_eq!(json["/ssn"], serde_json::json!("123-45-6789"));
+        assert!(json.get("_meta").is_none());
     }
 }

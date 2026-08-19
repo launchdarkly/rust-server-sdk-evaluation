@@ -145,6 +145,17 @@ impl Reference {
         }
     }
 
+    /// Constructs a [Reference] from a literal top-level attribute name, escaping it per the
+    /// backwards-compatibility rules so a name beginning with '/' is not read as pointer syntax.
+    pub(crate) fn from_literal_name(name: &str) -> Self {
+        if !name.starts_with('/') {
+            return Self::new(name);
+        }
+        let mut escaped = name.replace('~', "~0").replace('/', "~1");
+        escaped.insert(0, '/');
+        Self::new(escaped)
+    }
+
     /// Returns true if the reference is valid.
     pub fn is_valid(&self) -> bool {
         !matches!(&self.variant, Variant::Error(_))
@@ -303,12 +314,7 @@ impl From<AttributeName> for Reference {
     /// string passed into the Reference constructor, not the original AttributeName. This
     /// is desirable since data should be "upgraded" into the new format as it is encountered.
     fn from(name: AttributeName) -> Self {
-        if !name.0.starts_with('/') {
-            return Self::new(name.0);
-        }
-        let mut escaped = name.0.replace('~', "~0").replace('/', "~1");
-        escaped.insert(0, '/');
-        Self::new(escaped)
+        Reference::from_literal_name(&name.0)
     }
 }
 
