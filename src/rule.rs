@@ -286,6 +286,13 @@ impl Clause {
             context_kind: Kind::default(),
         }
     }
+
+    /// Returns an iterator over the segment keys referenced by this clause,
+    /// or an empty iterator if the clause is not a `segmentMatch`.
+    pub(crate) fn segment_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        let values = matches!(self.op, Op::SegmentMatch).then_some(&self.values);
+        values.into_iter().flatten().filter_map(|v| v.as_str())
+    }
 }
 
 impl FlagRule {
@@ -307,6 +314,12 @@ impl FlagRule {
         }
 
         Ok(true)
+    }
+
+    /// Returns an iterator over every segment key referenced by any
+    /// `segmentMatch` clause in this rule.
+    pub(crate) fn segment_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.clauses.iter().flat_map(Clause::segment_keys)
     }
 
     #[cfg(test)]
