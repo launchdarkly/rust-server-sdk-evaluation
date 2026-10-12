@@ -533,8 +533,11 @@ impl ContextAttributes {
     //     },
     //   },
     // }
+    //
+    // A reference must mark its node even when a longer reference already created that node.
+    // Otherwise "/address/street" followed by "/address" would leave "address" unredacted.
     fn make_private_attribute_lookup_data(
-        references: HashSet<Reference>,
+        references: impl IntoIterator<Item = Reference>,
     ) -> HashMap<String, Box<PrivateAttributeLookupNode>> {
         let mut return_value = HashMap::new();
 
@@ -542,20 +545,18 @@ impl ContextAttributes {
             let mut parent_map = &mut return_value;
             for i in 0..reference.depth() {
                 if let Some(name) = reference.component(i) {
-                    if !parent_map.contains_key(name) {
-                        let mut next_node = Box::new(PrivateAttributeLookupNode {
+                    let node = parent_map.entry(name.to_owned()).or_insert_with(|| {
+                        Box::new(PrivateAttributeLookupNode {
                             reference: None,
                             children: HashMap::new(),
-                        });
+                        })
+                    });
 
-                        if i == reference.depth() - 1 {
-                            next_node.reference = Some(reference.clone());
-                        }
-
-                        parent_map.insert(name.to_owned(), next_node);
+                    if i == reference.depth() - 1 {
+                        node.reference = Some(reference.clone());
                     }
 
-                    parent_map = &mut parent_map.get_mut(name).unwrap().children;
+                    parent_map = &mut node.children;
                 }
             }
         }
@@ -1196,6 +1197,37 @@ mod tests {
             HashSet::from(["/~1ssn".to_string()])
         );
         assert!(json.get("/ssn").is_none());
+    }
+
+    // A set of references is iterated in no particular order, so each order is tested
+    // explicitly.
+    #[test_case(&["/address", "/address/street"]; "parent first")]
+    #[test_case(&["/address/street", "/address"]; "child first")]
+    fn global_private_parent_is_redacted_when_a_child_is_also_private(references: &[&str]) {
+        let address = hashmap! {
+            "street".to_string() => AttributeValue::String("123 Main St".to_string()),
+            "city".to_string() => AttributeValue::String("Springfield".to_string()),
+        };
+        let context = ContextBuilder::new("my-key")
+            .set_value("address", AttributeValue::Object(address))
+            .build()
+            .expect("Failed to build context");
+
+        let attributes = ContextAttributes {
+            context,
+            all_attributes_private: false,
+            global_private_attributes: ContextAttributes::make_private_attribute_lookup_data(
+                references.iter().map(Reference::new),
+            ),
+            redact_anonymous: false,
+        };
+        let json = serde_json::to_value(&attributes).expect("Failed to serialize");
+
+        assert_eq!(
+            redacted_attributes(&json),
+            HashSet::from(["/address".to_string()])
+        );
+        assert!(json.get("address").is_none());
     }
 
     #[test]
