@@ -517,25 +517,27 @@ impl ContextAttributes {
     // This function transforms a set of [Reference]s into a data structure that allows for more
     // efficient check_global_private_attribute_refs.
     //
-    // For instance, if the original references were "/name", "/address/street", and
+    // For instance, if the original references were "/name", "/address", "/address/street", and
     // "/address/city", it would produce the following map:
     //
     // "name": {
-    //   attribute: Reference::new("/name"),
+    //   reference: Reference::new("/name"),
     // },
     // "address": {
+    //   reference: Reference::new("/address"),
     //   children: {
     //     "street": {
-    //       attribute: Reference::new("/address/street/"),
+    //       reference: Reference::new("/address/street"),
     //     },
     //     "city": {
-    //       attribute: Reference::new("/address/city/"),
+    //       reference: Reference::new("/address/city"),
     //     },
     //   },
     // }
     //
-    // A reference must mark its node even when a longer reference already created that node.
-    // Otherwise "/address/street" followed by "/address" would leave "address" unredacted.
+    // The "address" node has both a reference and children. A reference must mark its node even
+    // when a longer reference already created that node. Otherwise "/address/street" followed by
+    // "/address" would leave "address" without a reference, and so unredacted.
     fn make_private_attribute_lookup_data(
         references: impl IntoIterator<Item = Reference>,
     ) -> HashMap<String, Box<PrivateAttributeLookupNode>> {
