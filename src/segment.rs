@@ -208,9 +208,24 @@ impl Segment {
             Some(generation) => format!("{}.g{}", self.key, generation),
         }
     }
+
+    /// Returns an iterator over every segment key directly referenced by any
+    /// `segmentMatch` clause in this segment's rules.
+    ///
+    /// Used to build a dependency graph of segment-to-segment references;
+    /// does not resolve transitively.
+    pub fn segment_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.rules.iter().flat_map(SegmentRule::segment_keys)
+    }
 }
 
 impl SegmentRule {
+    /// Returns an iterator over every segment key referenced by any
+    /// `segmentMatch` clause in this rule.
+    pub(crate) fn segment_keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.clauses.iter().flat_map(Clause::segment_keys)
+    }
+
     /// Determines if a context matches the provided segment rule.
     ///
     /// A context will match if all segment clauses match; otherwise, this method returns false.
@@ -773,5 +788,57 @@ mod tests {
     fn unbounded_context_kind_accessor_returns_none_when_unset() {
         let segment = new_segment();
         assert_eq!(segment.unbounded_context_kind, None);
+    }
+
+    #[test]
+    fn segment_keys_collects_from_segment_match_clauses() {
+        let json = r#"{
+            "key": "seg",
+            "included": [],
+            "excluded": [],
+            "rules": [
+                {
+                    "id": "r1",
+                    "clauses": [
+                        {
+                            "attribute": "",
+                            "op": "segmentMatch",
+                            "values": ["seg-a", "seg-b"],
+                            "negate": false
+                        }
+                    ]
+                },
+                {
+                    "id": "r2",
+                    "clauses": [
+                        {
+                            "attribute": "email",
+                            "op": "in",
+                            "values": ["foo@example.com"],
+                            "negate": false
+                        },
+                        {
+                            "attribute": "",
+                            "op": "segmentMatch",
+                            "values": ["seg-c"],
+                            "negate": false
+                        }
+                    ]
+                }
+            ],
+            "salt": "salty",
+            "version": 1
+        }"#;
+
+        let segment: Segment = serde_json::from_str(json).unwrap();
+        let mut refs: Vec<&str> = segment.segment_keys().collect();
+        refs.sort();
+        assert_eq!(refs, vec!["seg-a", "seg-b", "seg-c"]);
+    }
+
+    #[test]
+    fn segment_keys_is_empty_for_plain_segment() {
+        let segment = new_segment();
+        assert_eq!(segment.segment_keys().count(), 0);
     }
 }
