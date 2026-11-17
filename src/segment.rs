@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::contexts::attribute_reference::AttributeName;
 use crate::contexts::context::{BucketPrefix, Kind};
 use crate::rule::Clause;
+use crate::util::null_as_default;
 use crate::variation::VariationWeight;
 use crate::{Context, EvaluationStack, Reference, Store, Versioned};
 use serde_with::skip_serializing_none;
@@ -14,17 +15,21 @@ pub struct Segment {
     /// The unique key of the segment.
     pub key: String,
     /// A list of context keys that are always matched by this segment.
+    #[serde(default, deserialize_with = "null_as_default")]
     pub included: Vec<String>,
     /// A list of context keys that are never matched by this segment, unless the key is also in
     /// included.
+    #[serde(default, deserialize_with = "null_as_default")]
     pub excluded: Vec<String>,
 
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     included_contexts: Vec<SegmentTarget>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     excluded_contexts: Vec<SegmentTarget>,
 
+    #[serde(default, deserialize_with = "null_as_default")]
     rules: Vec<SegmentRule>,
+    #[serde(default, deserialize_with = "null_as_default")]
     salt: String,
 
     /// Unbounded is true if this is a segment whose included list is stored separately and is not limited in size.
@@ -33,7 +38,7 @@ pub struct Segment {
     ///
     /// The name is historical: "unbounded segments" was an earlier name for the product feature that is currently
     /// known as "big segments". If unbounded is true, this is a big segment.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub unbounded: bool,
     #[serde(default)]
     /// Unbounded segments target specific, individual context kinds. If this value is not
@@ -264,6 +269,7 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use proptest::{collection::vec, option::of, prelude::*};
     use serde_json::json;
+    use test_case::test_case;
 
     prop_compose! {
         // Generate an arbitrary SegmentRule with 0-3 clauses
@@ -773,5 +779,61 @@ mod tests {
     fn unbounded_context_kind_accessor_returns_none_when_unset() {
         let segment = new_segment();
         assert_eq!(segment.unbounded_context_kind, None);
+    }
+
+    // Parses a segment that has the required properties and the given properties, and gives the
+    // serialized form of the parsed segment.
+    fn parse_segment_with(properties: serde_json::Value) -> serde_json::Value {
+        let mut json = json!({"key": "segment", "version": 1});
+        json.as_object_mut()
+            .unwrap()
+            .extend(properties.as_object().unwrap().clone());
+        let segment: Segment = serde_json::from_value(json).expect("segment should parse");
+        serde_json::to_value(segment).unwrap()
+    }
+
+    #[test]
+    fn segment_with_only_required_properties_has_defaults() {
+        let segment: Segment = serde_json::from_value(json!({"key": "segment", "version": 1}))
+            .expect("segment should parse");
+
+        assert!(segment.included.is_empty());
+        assert!(segment.excluded.is_empty());
+        assert!(segment.included_contexts.is_empty());
+        assert!(segment.excluded_contexts.is_empty());
+        assert!(segment.rules.is_empty());
+        assert_eq!(segment.salt, "");
+        assert!(!segment.unbounded);
+        assert_eq!(segment.unbounded_context_kind, None);
+        assert_eq!(segment.generation, None);
+    }
+
+    #[test_case(json!({"included": null}); "included")]
+    #[test_case(json!({"excluded": null}); "excluded")]
+    #[test_case(json!({"includedContexts": null}); "included contexts")]
+    #[test_case(json!({"excludedContexts": null}); "excluded contexts")]
+    #[test_case(json!({"rules": null}); "rules")]
+    #[test_case(json!({"salt": null}); "salt")]
+    #[test_case(json!({"unbounded": null}); "unbounded")]
+    #[test_case(json!({"unboundedContextKind": null}); "unbounded context kind")]
+    #[test_case(json!({"generation": null}); "generation")]
+    #[test_case(json!({"deleted": null}); "deleted")]
+    fn segment_property_with_null_value_is_the_same_as_omitted(with_null: serde_json::Value) {
+        assert_eq!(parse_segment_with(with_null), parse_segment_with(json!({})));
+    }
+
+    #[test]
+    fn segment_rule_property_with_null_value_is_the_same_as_omitted() {
+        let with_nulls = json!({
+            "id": null,
+            "clauses": [],
+            "weight": null,
+            "bucketBy": null,
+            "rolloutContextKind": null
+        });
+        let rule: SegmentRule = serde_json::from_value(with_nulls).expect("should parse");
+        let omitted: SegmentRule =
+            serde_json::from_value(json!({"clauses": []})).expect("should parse");
+        assert_eq!(rule, omitted);
     }
 }
