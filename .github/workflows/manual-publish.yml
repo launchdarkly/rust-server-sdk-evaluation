@@ -15,13 +15,13 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/tooling
       - uses: ./.github/actions/ci
       - uses: ./.github/actions/build-docs
 
-      - uses: launchdarkly/gh-actions/actions/release-secrets@release-secrets-v1.2.0
+      - uses: launchdarkly/gh-actions/actions/release-secrets@release-secrets-v1.2.1
         name: 'Get crates.io token'
         with:
           aws_assume_role: ${{ vars.AWS_ROLE_ARN }}
