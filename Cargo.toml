@@ -16,7 +16,8 @@ exclude = [
 ]
 
 [dependencies]
-chrono = { version = "0.4.23", default-features = false, features = ["std"] }
+chrono = { version = "0.4.23", default-features = false, features = ["std"], optional = true }
+time = { version = "0.3.47", default-features = false, features = ["std", "parsing"] }
 lazy_static = "1.4.0"
 log = "0.4.11"
 regex = "1.3.9"
@@ -39,7 +40,12 @@ proptest = "1.0.0"
 proptest-derive = "0.5.1"
 
 [features]
-default = ["float-roundtrip"]
+default = ["chrono", "float-roundtrip"]
+
+# Provide AttributeValue::to_datetime, which returns a chrono::DateTime. The chrono crate is
+# unmaintained (RUSTSEC-2026-0543), and the evaluation engine does not use it. Disable this
+# feature to remove chrono from the dependency graph.
+chrono = ["dep:chrono"]
 
 # If a secondary key is present in Context data, use it when computing
 # the Context's bucket. This may be enabled for backwards-compatibility purposes,
