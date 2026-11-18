@@ -12,6 +12,7 @@ use crate::contexts::context::Kind;
 use crate::eval::{self, Detail, Reason};
 use crate::flag_value::FlagValue;
 use crate::rule::FlagRule;
+use crate::util::null_as_default;
 use crate::variation::{VariationIndex, VariationOrRollout};
 use crate::{BucketResult, Context, Versioned};
 
@@ -29,11 +30,14 @@ pub struct Flag {
 
     pub(crate) on: bool,
 
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) targets: Vec<Target>,
 
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) context_targets: Vec<Target>,
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) rules: Vec<FlagRule>,
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) prerequisites: Vec<Prereq>,
 
     pub(crate) fallthrough: VariationOrRollout,
@@ -44,6 +48,7 @@ pub struct Flag {
     #[serde(flatten)]
     pub(crate) client_visibility: ClientVisibility,
 
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) salt: String,
 
     /// Used internally by the SDK analytics event system.
@@ -54,7 +59,7 @@ pub struct Flag {
     ///
     /// The launchdarkly-server-sdk-evaluation crate does not implement that behavior; it is only
     /// in the data model for use by the SDK.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub track_events: bool,
 
     /// Used internally by the SDK analytics event system.
@@ -66,7 +71,7 @@ pub struct Flag {
     ///
     /// The launchdarkly-server-sdk-evaluation package does not implement that behavior; it is only
     /// in the data model for use by the SDK.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub track_events_fallthrough: bool,
 
     /// Used internally by the SDK analytics event system.
@@ -102,7 +107,11 @@ pub struct Flag {
     ///
     /// LaunchDarkly may change this value to prevent poorly performing applications from adversely
     /// affecting upstream service health.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(
+        default,
+        deserialize_with = "null_as_default",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
     pub exclude_from_summaries: bool,
 }
 
@@ -172,14 +181,15 @@ impl<'de> Deserialize<'de> for ClientVisibility {
             where
                 V: MapAccess<'de>,
             {
-                let mut client_side = None;
+                // A null value gives None, the same as an omitted property.
+                let mut client_side: Option<bool> = None;
                 let mut client_side_availability: Option<ClientSideAvailability> = None;
 
                 while let Some(k) = map.next_key()? {
                     match k {
-                        Field::ClientSide => client_side = Some(map.next_value()?),
+                        Field::ClientSide => client_side = map.next_value()?,
                         Field::ClientSideAvailability => {
-                            client_side_availability = Some(map.next_value()?)
+                            client_side_availability = map.next_value()?
                         }
                     }
                 }
@@ -240,7 +250,7 @@ pub struct Prereq {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Target {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub(crate) context_kind: Kind,
 
     pub(crate) values: Vec<String>,
@@ -257,9 +267,11 @@ pub(crate) struct Target {
 pub struct ClientSideAvailability {
     /// Indicates that this flag is available to clients using the mobile key for
     /// authorization (includes most desktop and mobile clients).
+    #[serde(default, deserialize_with = "null_as_default")]
     pub using_mobile_key: bool,
     /// Indicates that this flag is available to clients using the environment
     /// id to identify an environment (includes client-side javascript clients).
+    #[serde(default, deserialize_with = "null_as_default")]
     pub using_environment_id: bool,
 
     // This field determines if ClientSideAvailability was explicitly included in the JSON payload.
@@ -384,6 +396,7 @@ mod tests {
 
     use super::Flag;
     use crate::eval::Reason::*;
+    use serde_json::json;
     use test_case::test_case;
 
     #[test_case(true)]
@@ -692,5 +705,119 @@ mod tests {
         let with_specific_ratio = serde_json::to_string_pretty(&flag).unwrap();
         assert!(with_specific_ratio.contains("\"migration\": {"));
         assert!(with_specific_ratio.contains("\"checkRatio\": 42"));
+    }
+
+    // Parses a flag that has the required properties and the given properties, and gives the
+    // serialized form of the parsed flag.
+    fn parse_flag_with(properties: serde_json::Value) -> serde_json::Value {
+        let mut json = json!({
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "fallthrough": {"variation": 0},
+            "variations": [false, true]
+        });
+        json.as_object_mut()
+            .unwrap()
+            .extend(properties.as_object().unwrap().clone());
+        let flag: Flag = serde_json::from_value(json).expect("flag should parse");
+        serde_json::to_value(flag).unwrap()
+    }
+
+    #[test]
+    fn flag_with_only_required_properties_has_defaults() {
+        let json = json!({
+            "key": "flag",
+            "version": 1,
+            "on": true,
+            "fallthrough": {"variation": 0},
+            "variations": [false, true]
+        });
+        let flag: Flag = serde_json::from_value(json).expect("flag should parse");
+
+        assert!(flag.targets.is_empty());
+        assert!(flag.context_targets.is_empty());
+        assert!(flag.rules.is_empty());
+        assert!(flag.prerequisites.is_empty());
+        assert_eq!(flag.salt, "");
+        assert_eq!(flag.off_variation, None);
+        assert!(!flag.track_events);
+        assert!(!flag.track_events_fallthrough);
+        assert!(!flag.exclude_from_summaries);
+        assert!(!flag.using_environment_id());
+        assert!(flag.using_mobile_key());
+    }
+
+    #[test_case(json!({"targets": null}); "targets")]
+    #[test_case(json!({"contextTargets": null}); "context targets")]
+    #[test_case(json!({"rules": null}); "rules")]
+    #[test_case(json!({"prerequisites": null}); "prerequisites")]
+    #[test_case(json!({"salt": null}); "salt")]
+    #[test_case(json!({"offVariation": null}); "off variation")]
+    #[test_case(json!({"clientSide": null}); "client side")]
+    #[test_case(json!({"clientSideAvailability": null}); "client side availability")]
+    #[test_case(json!({"trackEvents": null}); "track events")]
+    #[test_case(json!({"trackEventsFallthrough": null}); "track events fallthrough")]
+    #[test_case(json!({"debugEventsUntilDate": null}); "debug events until date")]
+    #[test_case(json!({"migration": null}); "migration")]
+    #[test_case(json!({"samplingRatio": null}); "sampling ratio")]
+    #[test_case(json!({"excludeFromSummaries": null}); "exclude from summaries")]
+    #[test_case(json!({"deleted": null}); "deleted")]
+    fn flag_property_with_null_value_is_the_same_as_omitted(with_null: serde_json::Value) {
+        assert_eq!(parse_flag_with(with_null), parse_flag_with(json!({})));
+    }
+
+    #[test_case(
+        json!({"targets": [{"contextKind": null, "variation": 1, "values": ["a"]}]}),
+        json!({"targets": [{"variation": 1, "values": ["a"]}]});
+        "target context kind"
+    )]
+    #[test_case(
+        json!({"rules": [{"id": null, "variation": 1, "clauses": []}]}),
+        json!({"rules": [{"variation": 1, "clauses": []}]});
+        "rule id"
+    )]
+    #[test_case(
+        json!({"rules": [{"id": "r", "variation": 1, "clauses": [], "trackEvents": null}]}),
+        json!({"rules": [{"id": "r", "variation": 1, "clauses": []}]});
+        "rule track events"
+    )]
+    #[test_case(
+        json!({"clientSideAvailability": {"usingMobileKey": null, "usingEnvironmentId": true}}),
+        json!({"clientSideAvailability": {"usingEnvironmentId": true}});
+        "client side availability using mobile key"
+    )]
+    #[test_case(
+        json!({"clientSideAvailability": {"usingMobileKey": true, "usingEnvironmentId": null}}),
+        json!({"clientSideAvailability": {"usingMobileKey": true}});
+        "client side availability using environment id"
+    )]
+    fn nested_property_with_null_value_is_the_same_as_omitted(
+        with_null: serde_json::Value,
+        omitted: serde_json::Value,
+    ) {
+        assert_eq!(parse_flag_with(with_null), parse_flag_with(omitted));
+    }
+
+    #[test_case(
+        json!({"targets": [{"variation": 1, "values": ["a"]}]}),
+        json!({"targets": [{"contextKind": "user", "variation": 1, "values": ["a"]}]});
+        "target"
+    )]
+    #[test_case(
+        json!({"rules": [{"variation": 1, "clauses": []}]}),
+        json!({"rules": [{"id": "", "variation": 1, "clauses": [], "trackEvents": false}]});
+        "rule"
+    )]
+    #[test_case(
+        json!({"clientSideAvailability": {}}),
+        json!({"clientSideAvailability": {"usingMobileKey": false, "usingEnvironmentId": false}});
+        "client side availability"
+    )]
+    fn omitted_property_has_its_default_value(
+        omitted: serde_json::Value,
+        with_default: serde_json::Value,
+    ) {
+        assert_eq!(parse_flag_with(omitted), parse_flag_with(with_default));
     }
 }

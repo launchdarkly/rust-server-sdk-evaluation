@@ -9,7 +9,7 @@ use log::{error, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use util::is_false;
+use util::{is_false, null_as_default};
 
 /// Clause describes an individual clause within a [crate::FlagRule] or `SegmentRule`.
 // Clause is deserialized via a helper, IntermediateClause, because of semantic ambiguity
@@ -42,7 +42,7 @@ pub struct Clause {
 struct ClauseWithKind {
     context_kind: Kind,
     attribute: Reference,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     negate: bool,
     op: Op,
     values: Vec<AttributeValue>,
@@ -52,7 +52,7 @@ struct ClauseWithKind {
 #[serde(rename_all = "camelCase")]
 struct ClauseWithoutKind {
     attribute: AttributeName,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     negate: bool,
     op: Op,
     values: Vec<AttributeValue>,
@@ -130,7 +130,7 @@ pub struct FlagRule {
     /// A randomized identifier assigned to each rule when it is created.
     ///
     /// This is used to populate the id property of [crate::Reason]
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub id: String,
     pub(crate) clauses: Vec<Clause>,
 
@@ -146,6 +146,7 @@ pub struct FlagRule {
     ///
     /// The launchdarkly-server-sdk-evaluation package does not implement that behavior; it is only
     /// in the data model for use by the SDK.
+    #[serde(default, deserialize_with = "null_as_default")]
     pub track_events: bool,
 }
 
@@ -1333,6 +1334,59 @@ mod tests {
                 .unwrap()
                 .negate
         )
+    }
+
+    #[test]
+    fn clause_with_negate_null_defaults_to_false() {
+        let negate_null = json!({
+            "attribute" : "",
+            "op" : "in",
+            "values" : [],
+            "negate" : null,
+        });
+
+        assert!(
+            !serde_json::from_value::<Clause>(negate_null)
+                .unwrap()
+                .negate
+        )
+    }
+
+    #[test]
+    fn clause_with_context_kind_and_negate_null_defaults_to_false() {
+        let with_context_kind = json!({
+            "contextKind" : "user",
+            "attribute" : "",
+            "op" : "in",
+            "values" : [],
+            "negate" : null,
+        });
+
+        assert!(
+            !serde_json::from_value::<Clause>(with_context_kind)
+                .unwrap()
+                .negate
+        )
+    }
+
+    #[test]
+    fn clause_with_context_kind_null_is_the_same_as_context_kind_omitted() {
+        let context_kind_null = json!({
+            "contextKind" : null,
+            "attribute" : "/a",
+            "op" : "in",
+            "values" : [],
+        });
+        let context_kind_omitted = json!({
+            "attribute" : "/a",
+            "op" : "in",
+            "values" : [],
+        });
+
+        assert_eq!(
+            serde_json::from_value::<Clause>(context_kind_omitted).unwrap(),
+            serde_json::from_value::<Clause>(context_kind_null).unwrap()
+        );
     }
 
     #[test]

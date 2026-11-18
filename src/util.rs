@@ -1,3 +1,5 @@
+use serde::{Deserialize, Deserializer};
+
 const FLOAT_TO_INT_MAX: f64 = 9007199254740991_f64;
 
 /// Converting float to int has undefined behaviour for huge floats: https://stackoverflow.com/a/41139453.
@@ -14,4 +16,15 @@ pub(crate) fn f64_to_i64_safe(f: f64) -> Option<i64> {
 
 pub(crate) fn is_false(b: &bool) -> bool {
     !(*b)
+}
+
+/// Deserializes an optional property. A null value gives the default value, the same as an
+/// omitted property. Use it with `#[serde(default)]`, which gives the default for an omitted
+/// property.
+pub(crate) fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
