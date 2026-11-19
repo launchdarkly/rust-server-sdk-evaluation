@@ -2,6 +2,18 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.3.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.2.3...2.3.0) (2026-11-19)
+
+
+### Features
+
+* Add a chrono feature so builds can drop the unmaintained chrono crate ([#68](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/68)) ([3a14f97](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/3a14f9754b5e77a56b848b46f07c9b4285e7a315))
+
+
+### Bug Fixes
+
+* Treat an omitted or null optional property in flag or segment data as its default ([#65](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/65)) ([0c76112](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/0c76112e41a97175ebe01ba5491e9f5278833644))
+
 ## [2.2.3](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.2.2...2.2.3) (2026-11-16)
 
 
