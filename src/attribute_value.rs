@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "chrono")]
 use chrono::{self, LocalResult, TimeZone, Utc};
 
 use lazy_static::lazy_static;
@@ -7,6 +8,7 @@ use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::util::f64_to_i64_safe;
 
@@ -153,12 +155,37 @@ impl AttributeValue {
         }
     }
 
+    /// Attempt to convert any of the following into Unix time in nanoseconds:
+    ///
+    ///  * RFC 3339 timestamp (example: "2016-04-16T17:09:12.759-07:00")
+    ///  * Unix epoch milliseconds as number
+    ///
+    /// It will return None if the conversion fails or if no conversion is possible.
+    pub(crate) fn to_unix_nanos(&self) -> Option<i128> {
+        match self {
+            AttributeValue::Number(millis) => {
+                f64_to_i64_safe(*millis).map(|millis| i128::from(millis) * 1_000_000)
+            }
+            AttributeValue::String(s) => OffsetDateTime::parse(s, &Rfc3339)
+                .map(OffsetDateTime::unix_timestamp_nanos)
+                .ok(),
+            AttributeValue::Bool(_) | AttributeValue::Null => None,
+            other => {
+                warn!("Don't know how or whether to convert attribute value {other:?} to datetime");
+                None
+            }
+        }
+    }
+
     /// Attempt to convert any of the following into a chrono::DateTime in UTC:
     ///
     ///  * RFC3339/ISO8601 timestamp (example: "2016-04-16T17:09:12.759-07:00")
     ///  * Unix epoch milliseconds as number
     ///
     /// It will return None if the conversion fails or if no conversion is possible.
+    ///
+    /// This method requires the `chrono` feature.
+    #[cfg(feature = "chrono")]
     pub fn to_datetime(&self) -> Option<chrono::DateTime<Utc>> {
         match self {
             AttributeValue::Number(millis) => {
