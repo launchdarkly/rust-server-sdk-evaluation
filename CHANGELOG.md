@@ -2,6 +2,14 @@
 
 All notable changes to the project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [2.3.1](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.3.0...2.3.1) (2026-11-20)
+
+
+### Reverts
+
+* Make AttributeValue::to_datetime available again when default features are off ([#69](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/69)) ([9f9dccc](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/9f9dcccde158df6e2d9f3138d5bd3293f943cb31))
+* Prevent deleted flags and segments in a persistent store from loading as live items ([#70](https://github.com/launchdarkly/rust-server-sdk-evaluation/issues/70)) ([3889b34](https://github.com/launchdarkly/rust-server-sdk-evaluation/commit/3889b3493930bf500cab398449b89986a562793b))
+
 ## [2.3.0](https://github.com/launchdarkly/rust-server-sdk-evaluation/compare/2.2.3...2.3.0) (2026-11-19)
 
 
