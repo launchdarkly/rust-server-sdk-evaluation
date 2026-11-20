@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contexts::attribute_reference::AttributeName;
-use crate::util::{is_false, null_as_default};
+use crate::util::is_false;
 use crate::{
     contexts::context::{BucketPrefix, Kind},
     Context, Reference,
@@ -220,11 +220,7 @@ pub struct WeightedVariation {
     pub weight: VariationWeight,
 
     /// Untracked means that contexts allocated to this variation should not have tracking events sent.
-    #[serde(
-        default,
-        deserialize_with = "null_as_default",
-        skip_serializing_if = "is_false"
-    )]
+    #[serde(default, skip_serializing_if = "is_false")]
     pub untracked: bool,
 }
 
@@ -767,24 +763,6 @@ mod tests {
         let json = json!({"variations" : []});
         let parsed: Rollout = serde_json::from_value(json.clone()).expect("should parse");
         assert_json_eq!(json, parsed);
-    }
-
-    #[test]
-    fn rollout_property_with_null_value_is_the_same_as_omitted() {
-        let with_nulls = json!({
-            "kind" : null,
-            "contextKind" : null,
-            "bucketBy" : null,
-            "seed" : null,
-            "variations" : [{"variation" : 1, "weight" : 100000, "untracked" : null}]
-        });
-        let omitted = json!({"variations" : [{"variation" : 1, "weight" : 100000}]});
-
-        let parsed: Rollout = serde_json::from_value(with_nulls).expect("should parse");
-        assert_eq!(
-            parsed,
-            serde_json::from_value::<Rollout>(omitted).expect("should parse")
-        );
     }
 
     #[test]
