@@ -16,7 +16,6 @@ This repository contains the internal feature flag evaluation logic and data mod
 
 | Feature | Default | Description |
 | --- | --- | --- |
-| `chrono` | yes | Provides `AttributeValue::to_datetime`, which returns a `chrono::DateTime`. The `chrono` crate is unmaintained ([RUSTSEC-2026-0543](https://rustsec.org/advisories/RUSTSEC-2026-0543.html)), and flag evaluation does not use it. Disable this feature to remove `chrono` from your build. |
 | `float-roundtrip` | yes | Enables `serde_json`'s `float_roundtrip` feature so that fractional JSON numbers deserialize to the same `f64` that Go's `encoding/json` produces. |
 | `secondary_key_bucketing` | no | Uses a secondary key present in context data when computing the context's bucket. Intended for backwards compatibility in non-SDK applications; secondary keys cannot be set using the context builders. |
 

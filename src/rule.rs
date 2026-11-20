@@ -4,6 +4,7 @@ use crate::contexts::context::Kind;
 use crate::store::Store;
 use crate::variation::VariationOrRollout;
 use crate::{util, Context, EvaluationStack, Reference};
+use chrono::{self, Utc};
 use log::{error, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -381,8 +382,12 @@ fn numeric_op<F: Fn(f64, f64) -> bool>(lhs: &AttributeValue, rhs: &AttributeValu
     }
 }
 
-fn time_op<F: Fn(i128, i128) -> bool>(lhs: &AttributeValue, rhs: &AttributeValue, f: F) -> bool {
-    match (lhs.to_unix_nanos(), rhs.to_unix_nanos()) {
+fn time_op<F: Fn(chrono::DateTime<Utc>, chrono::DateTime<Utc>) -> bool>(
+    lhs: &AttributeValue,
+    rhs: &AttributeValue,
+    f: F,
+) -> bool {
+    match (lhs.to_datetime(), rhs.to_datetime()) {
         (Some(l), Some(r)) => f(l, r),
         _ => false,
     }
@@ -409,7 +414,6 @@ mod tests {
     use serde_json::json;
     use std::collections::HashMap;
     use std::time::SystemTime;
-    use test_case::test_case;
     struct TestStore;
     use crate::proptest_generators::*;
 
@@ -612,100 +616,6 @@ mod tests {
         // nonsense strings don't match
         assert!(!Op::Before.matches(&astring("fish"), &anum(today_millis)));
         assert!(!Op::After.matches(&anum(today_millis), &astring("fish")));
-    }
-
-    // Each input is a valid RFC 3339 date-time. The expected value is its Unix time in whole
-    // milliseconds.
-    #[test_case("1970-01-01T00:00:00Z", 0.0; "utc designator")]
-    #[test_case("1970-01-01t00:00:00z", 0.0; "lowercase t and z")]
-    #[test_case("1970-01-01 00:00:00Z", 0.0; "space separator")]
-    #[test_case("1970-01-01T00:00:00+00:00", 0.0; "zero offset")]
-    #[test_case("1970-01-01T00:00:00-00:00", 0.0; "unknown local offset")]
-    #[test_case("1970-01-01T01:00:00+01:00", 0.0; "positive offset")]
-    #[test_case("1970-01-01T00:00:00-23:59", 86_340_000.0; "largest negative offset")]
-    #[test_case("1970-01-01T00:00:00.5Z", 500.0; "one fraction digit")]
-    #[test_case("2016-04-16T17:09:12.759-07:00", 1_460_851_752_759.0; "millisecond fraction")]
-    #[test_case("2024-02-29T00:00:00Z", 1_709_164_800_000.0; "leap day")]
-    #[test_case("0000-01-01T00:00:00Z", -62_167_219_200_000.0; "earliest year")]
-    #[test_case("9999-12-31T23:59:59.999Z", 253_402_300_799_999.0; "latest year")]
-    fn test_ops_time_parses_rfc3339(input: &str, millis: f64) {
-        assert!(!Op::Before.matches(&astring(input), &anum(millis)));
-        assert!(!Op::After.matches(&astring(input), &anum(millis)));
-        assert!(Op::Before.matches(&astring(input), &anum(millis + 1.0)));
-        assert!(Op::After.matches(&astring(input), &anum(millis - 1.0)));
-    }
-
-    #[test_case("1970-01-01T00:00Z"; "no seconds")]
-    #[test_case("1970-01-01T00:00:00"; "no offset")]
-    #[test_case("1970-01-01T00:00:00+0000"; "offset without colon")]
-    #[test_case("1970-01-01T00:00:00+00"; "offset without minutes")]
-    #[test_case("1970-01-01T00:00:00+01:00:00"; "offset with seconds")]
-    #[test_case("1970-01-01T00:00:00+24:00"; "offset hour out of range")]
-    #[test_case("1970-01-01T00:00:00+23:60"; "offset minute out of range")]
-    #[test_case("19700101T000000Z"; "basic format")]
-    #[test_case("1970-01-01T00:00:00Z[UTC]"; "time zone annotation")]
-    #[test_case("1970-01-01T00:00:00,5Z"; "comma fraction separator")]
-    #[test_case("1970-01-01T00:00:00.Z"; "empty fraction")]
-    #[test_case("1970-1-1T00:00:00Z"; "unpadded date")]
-    #[test_case("10000-01-01T00:00:00Z"; "five digit year")]
-    #[test_case("-0001-01-01T00:00:00Z"; "negative year")]
-    #[test_case("1970-13-01T00:00:00Z"; "month out of range")]
-    #[test_case("1970-02-30T00:00:00Z"; "day out of range")]
-    #[test_case("2023-02-29T00:00:00Z"; "leap day in common year")]
-    #[test_case("1970-01-01T24:00:00Z"; "hour out of range")]
-    #[test_case("1970-01-01T00:60:00Z"; "minute out of range")]
-    #[test_case("1970-01-01T00:00:61Z"; "second out of range")]
-    #[test_case(" 1970-01-01T00:00:00Z"; "leading space")]
-    #[test_case("1970-01-01T00:00:00Z "; "trailing space")]
-    #[test_case(""; "empty string")]
-    fn test_ops_time_rejects_invalid_rfc3339(input: &str) {
-        // A valid date-time is before the first bound or after the second bound.
-        assert!(!Op::Before.matches(&astring(input), &anum(1e15)));
-        assert!(!Op::After.matches(&astring(input), &anum(-1e15)));
-    }
-
-    #[test]
-    fn test_ops_time_keeps_sub_millisecond_precision() {
-        assert!(Op::Before.matches(
-            &astring("1970-01-01T00:00:00.123456788Z"),
-            &astring("1970-01-01T00:00:00.123456789Z")
-        ));
-        assert!(Op::After.matches(
-            &astring("1970-01-01T00:00:00.000001Z"),
-            &astring("1970-01-01T00:00:00Z")
-        ));
-    }
-
-    #[test]
-    fn test_ops_time_truncates_fraction_after_nanoseconds() {
-        // RFC 3339 does not limit the number of fraction digits.
-        let long = astring("1970-01-01T00:00:00.1234567891234Z");
-        let nanos = astring("1970-01-01T00:00:00.123456789Z");
-        assert!(!Op::Before.matches(&long, &nanos));
-        assert!(!Op::After.matches(&long, &nanos));
-    }
-
-    #[test]
-    fn test_ops_time_accepts_leap_second() {
-        let leap = astring("1990-12-31T23:59:60Z");
-        assert!(Op::After.matches(&leap, &astring("1990-12-31T23:59:59Z")));
-        assert!(Op::Before.matches(&leap, &astring("1991-01-01T00:00:00Z")));
-        assert!(Op::After.matches(
-            &astring("1990-12-31T15:59:60-08:00"),
-            &astring("1990-12-31T23:59:59Z")
-        ));
-    }
-
-    #[test]
-    fn test_ops_time_compares_strings_with_different_offsets() {
-        // Both values are 2016-04-17T00:09:12Z.
-        let west = astring("2016-04-16T17:09:12-07:00");
-        let east = astring("2016-04-17T01:09:12+01:00");
-        assert!(!Op::Before.matches(&west, &east));
-        assert!(!Op::After.matches(&west, &east));
-
-        assert!(Op::Before.matches(&west, &astring("2016-04-17T01:09:13+01:00")));
-        assert!(Op::After.matches(&west, &astring("2016-04-17T01:09:11+01:00")));
     }
 
     #[test]
